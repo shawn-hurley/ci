@@ -209,6 +209,7 @@ jobs:
             docker load --input ${image}
           ; done
           rm /tmp/images/*.tar
+          df -h
 
       - name: install konveyor
         uses: konveyor/tackle2-operator/.github/actions/install-tackle@release-0.4
