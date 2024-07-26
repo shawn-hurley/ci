@@ -247,6 +247,12 @@ jobs:
         if: ${{ inputs.artifact != '' }}
         uses: docker/setup-buildx-action@v2
 
+      - name: remove all stored images
+        run: |
+          docker rm -vf $(docker ps -aq)
+          docker rmi -f $(docker images -aq)
+          df -h
+
       - name: Download artifact
         if: ${{ inputs.artifact != '' }}
         uses: actions/download-artifact@v3
@@ -268,6 +274,7 @@ jobs:
           for image in $(ls /tmp/images/*.tar); do
             docker load --input ${image}
           ; done
+          rm /tmp/images/*.tar
 
       - name: Make bundle
         if: ${{ inputs.operator_bundle == '' }}
@@ -303,6 +310,10 @@ jobs:
         run: |
           go install github.com/onsi/ginkgo/v2/ginkgo
         working-directory: go-konveyor-tests
+
+      - name: See current memory usage
+        run: |
+          df -h
 
       - name: Build and run golang API tests
         env:
