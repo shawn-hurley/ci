@@ -167,12 +167,18 @@ jobs:
         if: "${{ inputs.component_name != '' }}"
         uses: docker/setup-buildx-action@v2
 
+      - name: remove all stored images
+        run: |
+          docker rm -vf $(docker ps -aq)
+          docker rmi -f $(docker images -aq)
+          df -h
+
       - name: Download artifact
         if: "${{ inputs.component_name != '' }}"
         uses: actions/download-artifact@v3
         with:
           name: ${{ inputs.component_name }}
-          path: /tmp
+          path: /tmp/images
 
       - name: start minikube
         uses: konveyor/tackle2-operator/.github/actions/start-minikube@release-0.4
@@ -194,12 +200,15 @@ jobs:
           cpus: 'max'
 
       # TODO: Could just load all images found in this artifact so that people can rebuild multiple components if needed
-      - name: Load image
-        if: "${{ inputs.component_name != '' }}"
+      - name: Load images
+        if: ${{ inputs.component_name != '' }}
         run: |
           export SHELL=/bin/bash
           eval $(minikube -p minikube docker-env)
-          docker load --input /tmp/${{ inputs.component_name }}.tar
+          for image in $(ls /tmp/images/*.tar); do
+            docker load --input ${image}
+          ; done
+          rm /tmp/images/*.tar
 
       - name: install konveyor
         uses: konveyor/tackle2-operator/.github/actions/install-tackle@release-0.4
