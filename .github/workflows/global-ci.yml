@@ -175,6 +175,12 @@ jobs:
           path: /tmp
 
       - name: start minikube
+        uses: konveyor/tackle2-operator/.github/actions/start-minikube@release-0.5
+        if: "${{ startsWith(inputs.operator_tag, 'v0.5') }}"
+        with:
+          memory: 'max'
+          cpus: 'max'
+      - name: start minikube
         uses: konveyor/tackle2-operator/.github/actions/start-minikube@release-0.4
         if: "${{ startsWith(inputs.operator_tag, 'v0.4') }}"
         with:
