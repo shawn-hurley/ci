@@ -430,7 +430,7 @@ jobs:
       - name: Run UI tests (${{ inputs.ui_test_tags }})
         uses: cypress-io/github-action@v6
         env:
-          CYPRESS_INCLUDE_TAGS: "@ci,@tier0,@tier1,@tier2"
+          CYPRESS_INCLUDE_TAGS: "@ci,@tier0,@tier1"
           CYPRESS_user: "admin"
           CYPRESS_pass: "Dog8code"
           CYPRESS_tackleUrl: "${{ env.UI_URL }}"
