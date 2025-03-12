@@ -426,6 +426,7 @@ jobs:
         with:
           working-directory: tackle-ui-tests
           spec: "cypress/e2e/tests/login.test.ts"
+          config: baseUrl=${{env.UI_URL}},numTestsKeptInMemory=0,testIsolation=true
       
       - name: Run UI tests (${{ inputs.ui_test_tags }})
         uses: cypress-io/github-action@v6
@@ -443,7 +444,7 @@ jobs:
           # spec can be removed once https://github.com/konveyor/tackle-ui-tests/pull/1331 merges
           spec: "**/*.test.ts"
           browser: chrome
-          config: baseUrl=${{env.UI_URL}},numTestsKeptInMemory=0,testIsolation=false
+          config: baseUrl=${{env.UI_URL}},numTestsKeptInMemory=0,testIsolation=true
 
       - name: Upload cypress report data as artifact
         uses: actions/upload-artifact@v4
