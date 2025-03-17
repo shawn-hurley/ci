@@ -390,7 +390,7 @@ jobs:
           analyzer-container-memory: 0
           analyzer-container-cpu: 0
       - name: install konveyor
-        uses: konveyor/tackle2-operator/.github/actions/install-tackle@main
+        uses: shawn-hurley/operator/.github/actions/install-tackle@feature/add-auth
         if: "${{ inputs.operator_tag == 'latest'}}"
         with:
           operator-bundle-image: "quay.io/konveyor/tackle2-operator-bundle:${{ inputs.operator_tag }}"
@@ -400,6 +400,7 @@ jobs:
           image-pull-policy: IfNotPresent
           analyzer-container-memory: 0
           analyzer-container-cpu: 0
+          enable_auth: "true"
       # end DRY
 
       - name: Wait for Ingress and expose UI service
