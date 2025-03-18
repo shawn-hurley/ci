@@ -165,7 +165,8 @@ on:
         required: false
         type: string
         default: "@ci"
-
+permissions:
+  packages: read
 jobs:
   e2e-api-integration-tests:
     runs-on: ubuntu-latest
