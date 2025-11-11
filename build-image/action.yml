@@ -41,80 +41,77 @@ inputs:
 
 runs:
   using: "composite"
-  build-and-upload-image:
-    runs-on: ubuntu-latest
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.repo }}
+        ref: ${{ inputs.ref }}
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ inputs.repo }}
-          ref: ${{ inputs.ref }}
+    - name: Setup podman build cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          /var/tmp/buildah-cache
+          $TMPDIR/buildah-cache
+        key: ${{ runner.os }}-podman-buildcache
+        restore-keys: |
+          ${{ runner.os }}-podman-buildcache
 
-      - name: Setup podman build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            /var/tmp/buildah-cache
-            $TMPDIR/buildah-cache
-          key: ${{ runner.os }}-podman-buildcache
-          restore-keys: |
-            ${{ runner.os }}-podman-buildcache
+    - name: Download base image artifact
+      if: "${{ inputs.base_image != '' }}"
+      id: download-artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.base_image }}
+        path: /tmp/base_images
 
-      - name: Download base image artifact
-        if: "${{ inputs.base_image != '' }}"
-        id: download-artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ inputs.base_image }}
-          path: /tmp/base_images
+    - name: Load base image into podman
+      if: "${{ inputs.base_image != '' }}"
+      env:
+        IMAGES_PATH: ${{ steps.download-artifact.outputs.download-path }}
+      run: |
+        echo "Loading base image from ${IMAGES_PATH}"
+        for image in $(find "${IMAGES_PATH}" -type f -name "*.tar"); do
+          echo "Loading image: ${image}" | tee -a "$GITHUB_STEP_SUMMARY"
+          podman load -i "${image}"
+        done
+        echo "Loaded images:" | tee -a "$GITHUB_STEP_SUMMARY"
+        podman images | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: Load base image into podman
-        if: "${{ inputs.base_image != '' }}"
-        env:
-          IMAGES_PATH: ${{ steps.download-artifact.outputs.download-path }}
-        run: |
-          echo "Loading base image from ${IMAGES_PATH}"
-          for image in $(find "${IMAGES_PATH}" -type f -name "*.tar"); do
-            echo "Loading image: ${image}" | tee -a "$GITHUB_STEP_SUMMARY"
-            podman load -i "${image}"
-          done
-          echo "Loaded images:" | tee -a "$GITHUB_STEP_SUMMARY"
-          podman images | tee -a "$GITHUB_STEP_SUMMARY"
+    - name: Build image with podman
+      id: build_image
+      run: |
+        IMAGE_NAME="${{ inputs.image_name }}"
+        IMAGE_TAG="${{ inputs.image_tag }}"
+        FULL_IMAGE_NAME="quay.io/konveyor/${IMAGE_NAME}:${IMAGE_TAG}"
 
-      - name: Build image with podman
-        id: build_image
-        run: |
-          IMAGE_NAME="${{ inputs.image_name }}"
-          IMAGE_TAG="${{ inputs.image_tag }}"
-          FULL_IMAGE_NAME="quay.io/konveyor/${IMAGE_NAME}:${IMAGE_TAG}"
+        echo "Building image: ${FULL_IMAGE_NAME}"
+        podman build \
+          -f "${{ inputs.dockerfile_path }}" \
+          -t "${FULL_IMAGE_NAME}" \
+          "${{ inputs.build_context }}"
 
-          echo "Building image: ${FULL_IMAGE_NAME}"
-          podman build \
-            -f "${{ inputs.dockerfile_path }}" \
-            -t "${FULL_IMAGE_NAME}" \
-            "${{ inputs.build_context }}"
+        echo "Saving image to tar file..."
+        mkdir -p image_artifact
+        TAR_FILE="image_artifact/${IMAGE_NAME}_${IMAGE_TAG}.tar"
+        podman save "${FULL_IMAGE_NAME}" -o "${TAR_FILE}"
 
-          echo "Saving image to tar file..."
-          mkdir -p image_artifact
-          TAR_FILE="image_artifact/${IMAGE_NAME}_${IMAGE_TAG}.tar"
-          podman save "${FULL_IMAGE_NAME}" -o "${TAR_FILE}"
+        echo "image_name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
+        echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+        echo "tar_file=${TAR_FILE}" >> $GITHUB_OUTPUT
+        echo "full_image_name=${FULL_IMAGE_NAME}" >> $GITHUB_OUTPUT
 
-          echo "image_name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
-          echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
-          echo "tar_file=${TAR_FILE}" >> $GITHUB_OUTPUT
-          echo "full_image_name=${FULL_IMAGE_NAME}" >> $GITHUB_OUTPUT
+    - name: Upload image artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.build_image.outputs.image_name }}-${{ steps.build_image.outputs.image_tag }}
+        path: ${{ steps.build_image.outputs.tar_file }}
+        retention-days: 1
 
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.build_image.outputs.image_name }}-${{ steps.build_image.outputs.image_tag }}
-          path: ${{ steps.build_image.outputs.tar_file }}
-          retention-days: 7
-
-      - name: Summary
-        run: |
-          echo "## Build Image Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image Name**: ${{ steps.build_image.outputs.full_image_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Artifact Name**: ${{ steps.build_image.outputs.image_name }}-${{ steps.build_image.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+    - name: Summary
+      run: |
+        echo "## Build Image Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image Name**: ${{ steps.build_image.outputs.full_image_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Artifact Name**: ${{ steps.build_image.outputs.image_name }}-${{ steps.build_image.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
