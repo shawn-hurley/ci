@@ -68,6 +68,7 @@ runs:
 
     - name: Load base image into podman
       if: "${{ inputs.base_image != '' }}"
+      shell: bash
       env:
         IMAGES_PATH: ${{ steps.download-artifact.outputs.download-path }}
       run: |
@@ -81,6 +82,7 @@ runs:
 
     - name: Build image with podman
       id: build_image
+      shell: bash
       run: |
         IMAGE_NAME="${{ inputs.image_name }}"
         IMAGE_TAG="${{ inputs.image_tag }}"
@@ -110,6 +112,7 @@ runs:
         retention-days: 1
 
     - name: Summary
+      shell: bash
       run: |
         echo "## Build Image Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
