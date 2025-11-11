@@ -90,11 +90,11 @@ jobs:
       - name: Build Image
         uses: ./build-image
         with:
-          repo: ${{ github.events.inputs.repo }}
-          ref: ${{ github.events.inputs.ref }}
-          base_image: ${{ github.events.inputs.base_image }}
-          image_name: ${{ github.events.inputs.image_name }}
-          image_tag: ${{ github.events.inputs.image_tag }}
-          dockerfile_path: ${{ github.events.inputs.dockerfile_path }}
-          build_context: ${{ github.events.inputs.build_context }}
+          repo: ${{ inputs.repo }}
+          ref: ${{ inputs.ref }}
+          base_image: ${{ inputs.base_image }}
+          image_name: ${{ inputs.image_name }}
+          image_tag: ${{ inputs.image_tag }}
+          dockerfile_path: ${{ inputs.dockerfile_path }}
+          build_context: ${{ inputs.build_context }}
 
