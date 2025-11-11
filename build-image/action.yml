@@ -95,8 +95,8 @@ runs:
           "${{ inputs.build_context }}"
 
         echo "Saving image to tar file..."
-        mkdir -p image_artifact
         TAR_FILE="image_artifact/${IMAGE_NAME}_${IMAGE_TAG}.tar"
+        mkdir -p ${TAR_FILE}
         podman save "${FULL_IMAGE_NAME}" -o "${TAR_FILE}"
 
         echo "image_name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
