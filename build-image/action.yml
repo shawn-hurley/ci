@@ -86,7 +86,7 @@ runs:
       run: |
         IMAGE_NAME="${{ inputs.image_name }}"
         IMAGE_TAG="${{ inputs.image_tag }}"
-        FULL_IMAGE_NAME="quay.io/konveyor/${IMAGE_NAME}:${IMAGE_TAG}"
+        FILE_NAME="${IMAGE_NAME//\//_}"
 
         echo "Building image: ${FULL_IMAGE_NAME}"
         podman build \
@@ -95,7 +95,7 @@ runs:
           "${{ inputs.build_context }}"
 
         echo "Saving image to tar file..."
-        TAR_FILE="image_artifact/${IMAGE_NAME}_${IMAGE_TAG}.tar"
+        TAR_FILE="image_artifact/${FILE_NAME}.tar"
         mkdir -p image_artifact/${IMAGE_NAME}
         podman save "${FULL_IMAGE_NAME}" -o "${TAR_FILE}"
 
