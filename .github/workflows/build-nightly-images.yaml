@@ -68,9 +68,6 @@ jobs:
         if: success() && matrix.config.dependent_jobs != '' && matrix.config.dependent_jobs[0] != null
         shell: bash
         run: |
-          # Install jq for JSON manipulation
-          sudo apt-get update && sudo apt-get install -y jq
-
           # Get the artifact name from the build step
           BASE_IMAGE="${{ steps.build-image.outputs.file_name }}"
 
@@ -78,4 +75,8 @@ jobs:
           DEPENDENT_JOBS='${{ toJSON(matrix.config.dependent_jobs) }}'
           MODIFIED_JOBS=$(echo "$DEPENDENT_JOBS" | jq --arg base "$BASE_IMAGE" 'map(. + {base_image: $base})')
 
-          echo "dependent-jobs=$MODIFIED_JOBS" >> $GITHUB_OUTPUT
+          {
+            echo "dependent-jobs<<EOF"
+            echo "$MODIFIED_JOBS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
