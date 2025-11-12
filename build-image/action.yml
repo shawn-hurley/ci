@@ -91,7 +91,7 @@ runs:
         echo "Building image: ${FULL_IMAGE_NAME}"
         podman build \
           -f "${{ inputs.dockerfile_path }}" \
-          -t "${FULL_IMAGE_NAME}" \
+          -t "${IMAGE_NAME}:${IMAGE_TAG}" \
           "${{ inputs.build_context }}"
 
         echo "Saving image to tar file..."
