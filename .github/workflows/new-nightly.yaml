@@ -56,10 +56,6 @@ jobs:
             image: "quay.io/konveyor/tackle2-addon-platform"
             dockerfile_path: "Dockerfile"
             context_path: "."
-            go_mod_update:
-              - "github.com/konveyor/tackle2-hub@${{ inputs.branch }}"
-              - "github.com/konveyor/asset-generation@${{ inputs.branch }}"
-              - "github.com/konveyor/tackle2-addon@${{ inputs.branch }}"
           - repo: "konveyor/kai"
             image: "quay.io/konveyor/kai-solution-server"
             dockerfile_path: "./kai_mcp_solution_server/tools/deploy/Containerfile"
