@@ -41,12 +41,6 @@ inputs:
 
 runs:
   using: "composite"
-  post:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        repository: ${{ inputs.repo }}
-        ref: ${{ inputs.ref }}
   steps:
     - name: Checkout repository
       uses: actions/checkout@v4
