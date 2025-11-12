@@ -47,7 +47,11 @@ jobs:
           # Read the config file and replace BRANCH_PLACEHOLDER with actual branch
           config=$(/tmp/yq eval '.config' .github/workflows/nightly-matrix-config.yaml -o=json | sed "s/BRANCH_PLACEHOLDER/${{ inputs.branch }}/g")
 
-          echo "matrix={\"config\":$config}" >> $GITHUB_OUTPUT
+          {
+            echo "matrix<<EOF"
+            echo "{\"config\":$config}"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
   build-images:
     needs: prepare-level0-matrix
@@ -72,10 +76,18 @@ jobs:
 
           if [ -z "$dependent_jobs" ] || [ "$dependent_jobs" = "null" ] || [ "$dependent_jobs" = "" ]; then
             echo "has-jobs=false" >> $GITHUB_OUTPUT
-            echo "matrix={\"config\":[]}" >> $GITHUB_OUTPUT
+            {
+              echo "matrix<<EOF"
+              echo "{\"config\":[]}"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
           else
             echo "has-jobs=true" >> $GITHUB_OUTPUT
-            echo "matrix={\"config\":$dependent_jobs}" >> $GITHUB_OUTPUT
+            {
+              echo "matrix<<EOF"
+              echo "{\"config\":$dependent_jobs}"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
           fi
 
   build-level1-images:
@@ -102,10 +114,18 @@ jobs:
 
           if [ -z "$dependent_jobs" ] || [ "$dependent_jobs" = "null" ] || [ "$dependent_jobs" = "" ]; then
             echo "has-jobs=false" >> $GITHUB_OUTPUT
-            echo "matrix={\"config\":[]}" >> $GITHUB_OUTPUT
+            {
+              echo "matrix<<EOF"
+              echo "{\"config\":[]}"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
           else
             echo "has-jobs=true" >> $GITHUB_OUTPUT
-            echo "matrix={\"config\":$dependent_jobs}" >> $GITHUB_OUTPUT
+            {
+              echo "matrix<<EOF"
+              echo "{\"config\":$dependent_jobs}"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
           fi
 
   build-level2-images:
