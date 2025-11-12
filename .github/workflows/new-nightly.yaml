@@ -146,7 +146,7 @@ jobs:
         shell: bash
         if: matrix.config.go_mod_update != '' && matrix.config.go_mod_update[0] != null
         run: |
-          for mod_update in ${{ join(fromJSON(matrix.config.go_mod_update), ' ') }}
+          for mod_update in ${{ join(matrix.config.go_mod_update, ' ') }}
           do
             echo "updating go mod $mod_update"
             go get -u $mod_update
