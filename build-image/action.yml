@@ -38,11 +38,18 @@ inputs:
       Build context directory
     type: string
     default: "."
+  checked_out:
+    description: |
+      If the repository is already checked out
+    type: boolean
+    default: false
+
 
 runs:
   using: "composite"
   steps:
     - name: Checkout repository
+      if: !${{ checked_out }}
       uses: actions/checkout@v4
       with:
         repository: ${{ inputs.repo }}
