@@ -49,7 +49,7 @@ jobs:
             dockerfile_path: "Dockerfile.init"
             context_path: "." 
           - repo: "konveyor/tackle2-ui"
-            image: "quay.io/konveyor/tackle2-ui:latest"
+            image: "quay.io/konveyor/tackle2-ui"
             dockerfile_path: "Dockerfile"
             context_path: "."
           - repo: "konveyor/tackle2-addon-platform"
@@ -82,7 +82,7 @@ jobs:
                 context_path: "."
                 dependent_jobs:
                   - repo: "konveyor/tackle2-addon-analyzer"
-                    image: "quay.io/konveyor/tackle2-addon-analyzer:latest"
+                    image: "quay.io/konveyor/tackle2-addon-analyzer"
                     dockerfile_path: "Dockerfile"
                     context_path: "."
                     go_mod_update:
