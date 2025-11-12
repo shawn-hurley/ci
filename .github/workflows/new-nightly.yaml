@@ -41,9 +41,9 @@ jobs:
     # 2. javascript provider (needs rename)
     # 3. python provider
     # 4. golang provider
-  strategy:
-    matrix:
-      config:
+    strategy:
+      matrix:
+        config:
         - repo: "konveyor/tackle-keycloak-theme"
           image: "quay.io/konveyor/tackle-keycloak-init"
           dockerfile_path: "Dockerfile.init"
