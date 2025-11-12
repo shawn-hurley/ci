@@ -62,7 +62,7 @@ jobs:
               - "github.com/konveyor/tackle2-addon@${{ inputs.branch }}"
           - repo: "konveyor/kai"
             image: "quay.io/konveyor/kai-solution-server"
-            dockerfile_path: ".kai_mcp_solution_server/tools/deploy/Containerfile"
+            dockerfile_path: "./kai_mcp_solution_server/tools/deploy/Containerfile"
             context_path: "./kai_mcp_solution_server"
           - repo: "konveyor/tackle2-addon-discovery"
             image: quay.io/konveyor/tackle2-addon-discovery
