@@ -97,4 +97,5 @@ jobs:
           image_tag: ${{ inputs.image_tag }}
           dockerfile_path: ${{ inputs.dockerfile_path }}
           build_context: ${{ inputs.build_context }}
-
+      - name: "re-checkout"
+        uses: actions/checkout@v5
