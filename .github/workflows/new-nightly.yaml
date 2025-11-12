@@ -25,139 +25,93 @@ on:
         default: main 
 
 jobs:
-  build-images: 
+  prepare-level0-matrix:
     runs-on: ubuntu-latest
-    ## This should be a matrix that includes static-report 
-    # rulesets which should trigger the hub and it's components BESIDES the addon-analyzer.
-    # Java analyzer bundle triggers konveyor/analyzer-lsp (which includes all external providers in that repo).
-    # Analyzer-LSP then needs to trigger kai, kantra, tackle-addon-analyzer.
-    # Next we need to build the operator/operator-bundle using all the images.
-    # Next we need to define the end-to-end tests to run and run a matrix for
-    # 1. tackle2-hub/operator
-    # 2. kantra -> Needs to run on mac/windows/linux
-    # 3. kai -> Needs to run on mac/windows/linux
-    # Each of these, needs to have a test for all the external providers built here
-    # 1. java-external-provider
-    # 2. javascript provider (needs rename)
-    # 3. python provider
-    # 4. golang provider
-    strategy:
-      matrix:
-        config:
-          - repo: "konveyor/tackle-keycloak-theme"
-            image: "quay.io/konveyor/tackle-keycloak-init"
-            dockerfile_path: "Dockerfile.init"
-            context_path: "." 
-          - repo: "konveyor/tackle2-ui"
-            image: "quay.io/konveyor/tackle2-ui"
-            dockerfile_path: "Dockerfile"
-            context_path: "."
-          - repo: "konveyor/tackle2-addon-platform"
-            image: "quay.io/konveyor/tackle2-addon-platform"
-            dockerfile_path: "Dockerfile"
-            context_path: "."
-          - repo: "konveyor/kai"
-            image: "quay.io/konveyor/kai-solution-server"
-            dockerfile_path: "./kai_mcp_solution_server/tools/deploy/Containerfile"
-            context_path: "./kai_mcp_solution_server"
-          - repo: "konveyor/tackle2-addon-discovery"
-            image: quay.io/konveyor/tackle2-addon-discovery
-            dockerfile_path: "Dockerfile"
-            context_path: "."
-          - repo: "konveyor/java-analyzer-bundle"
-            image: "quay.io/konveyor/jdtls-server-base"
-            dockerfile_path: "Dockerfile"
-            context_path: "."
-            dependent_jobs:
-              - repo: "konveyor/analyzer-lsp"
-                image: "quay.io/konveyor/analyzer-lsp"
-                dockerfile_path: "Dockerfile"
-                context_path: "."
-                dependent_jobs:
-                  - repo: "konveyor/tackle2-addon-analyzer"
-                    image: "quay.io/konveyor/tackle2-addon-analyzer"
-                    dockerfile_path: "Dockerfile"
-                    context_path: "."
-                    go_mod_update:
-                      - "github.com/konveyor/analyzer-lsp@${{ inputs.branch }}"
-              - repo: "konveyor/analyzer-lsp" 
-                image: "quay.io/konveyor/golang-dependency-provider"
-                dockerfile_path: "./external-providers/golang-dependency-provider/Dockerfile"
-                context_path: "."
-                go_mod_update: 
-                  - "github.com/konveyor/analyzer-lsp@${{ inputs.branch }}"
-                dependent_jobs:
-                  - repo: "konveyor/analyzer-lsp"
-                    image: "quay.io/konveyor/generic-external-provider"
-                    dockerfile_path: "./external-providers/generic-external-provider/Dockerfile"
-                    context_path: "."
-                    go_mod_update:
-                      - "github.com/konveyor/analyzer-lsp@${{ inputs.branch }}"
-              - repo: "konveyor/analyzer-lsp" 
-                image: "quay.io/konveyor/yq-external-provider"
-                dockerfile_path: "./external-providers/yq-external-provider/Dockerfile"
-                context_path: "."
-                go_mod_update:
-                  - "github.com/konveyor/analyzer-lsp@${{ inputs.branch }}"
-              - repo: "konveyor/analyzer-lsp"
-                image: "quay.io/konveyor/java-external-provider"
-                dockerfile_path: "./external-providers/java-external-provider/Dockerfile"
-                context_path: "."
-                go_mod_update:
-                  - "github.com/konveyor/analyzer-lsp@${{ inputs.branch }}"
-          - repo: "konveyor/static-report"
-            image: "quay.io/konveyor/static-report"
-            dockerfile_path: "Dockerfile"
-            context_path: "."
-            dependent_jobs:
-              - repo: "konveyor/kantra"
-                image: "quay.io/konveyor/kantra"
-                dockerfile_path: "Dockerfile"
-                context_path: "."
-                go_mod_update:
-                  - "github.com/konveyor/analyzer-lsp@${{ inputs.branch }}"
-                  - "github.com/konveyor/analyzer-lsp/external-providers/java-external-provider@${{ inputs.branch }}"
-                  - "github.com/konveyor/analyzer-lsp/asset-generation@${{ inputs.branch }}"
-              - repo: "konveyor/tackle2-hub"
-                image: "quay.io/konveyor/tackle2-hub"
-                dockerfile_path: "Dockerfile"
-                context_path: "."
-                args: "SEED_BRANCH=${{ inputs.branch }}"
-                go_mod_update:
-                  - "github.com/konveyor/tackle2-seed@${{ inputs.branch }}"
-    steps: 
-      - name: Checkout repo
-        id: checkout
+    outputs:
+      matrix: ${{ steps.prepare.outputs.matrix }}
+    steps:
+      - name: Checkout ci repo
         uses: actions/checkout@v5
         with:
-          repository: ${{ matrix.config.repo }}
-          ref: ${{ github.event.inputs.branch }}
-      - name: Update go mod to the branch
-        id: go_mod
-        shell: bash
-        if: matrix.config.go_mod_update != '' && matrix.config.go_mod_update[0] != null
-        run: |
-          for mod_update in ${{ join(matrix.config.go_mod_update, ' ') }}
-          do
-            echo "updating go mod $mod_update"
-            go get -u $mod_update
-          done
-      - name: Get Nightly Tag
-        id: get_tag
+          repository: shawn-hurley/ci
+          ref: main
+
+      - name: Prepare level 0 matrix
+        id: prepare
         shell: bash
         run: |
-          date=$(date +'%Y.%m.%d')
-          echo "tag=${{ inputs.branch }}_$date" >> $GITHUB_OUTPUT
+          # Install yq for YAML parsing
+          curl -sL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /tmp/yq
+          chmod +x /tmp/yq
 
-      - name: build image
-        uses: shawn-hurley/ci/build-image@main
-        with:
-          repo: ${{ matrix.config.repo }}
-          ref: ${{ inputs.branch }}
-          #base_image: ${{ matrix.base_image }}
-          image_name: ${{ matrix.config.image }}
-          image_tag: ${{ steps.get_tag.outputs.tag }}
-          dockerfile_path: ${{ matrix.config.dockerfile_path }}
-          build_context: ${{ matrix.config.context_path }}
-          checked_out: true
+          # Read the config file and replace BRANCH_PLACEHOLDER with actual branch
+          config=$(/tmp/yq eval '.config' .github/workflows/nightly-matrix-config.yaml -o=json | sed "s/BRANCH_PLACEHOLDER/${{ inputs.branch }}/g")
 
+          echo "matrix={\"config\":$config}" >> $GITHUB_OUTPUT
+
+  build-images:
+    needs: prepare-level0-matrix
+    uses: ./.github/workflows/build-nightly-images.yaml
+    with:
+      matrix-config: ${{ needs.prepare-level0-matrix.outputs.matrix }}
+      branch: ${{ inputs.branch }}
+
+  prepare-level1-matrix:
+    needs: build-images
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.prepare.outputs.matrix }}
+      has-jobs: ${{ steps.prepare.outputs.has-jobs }}
+    steps:
+      - name: Prepare level 1 matrix
+        id: prepare
+        shell: bash
+        run: |
+          # Get dependent jobs from the previous job output
+          dependent_jobs='${{ needs.build-images.outputs.dependent-jobs }}'
+
+          if [ -z "$dependent_jobs" ] || [ "$dependent_jobs" = "null" ] || [ "$dependent_jobs" = "" ]; then
+            echo "has-jobs=false" >> $GITHUB_OUTPUT
+            echo "matrix={\"config\":[]}" >> $GITHUB_OUTPUT
+          else
+            echo "has-jobs=true" >> $GITHUB_OUTPUT
+            echo "matrix={\"config\":$dependent_jobs}" >> $GITHUB_OUTPUT
+          fi
+
+  build-level1-images:
+    needs: prepare-level1-matrix
+    if: needs.prepare-level1-matrix.outputs.has-jobs == 'true'
+    uses: ./.github/workflows/build-nightly-images.yaml
+    with:
+      matrix-config: ${{ needs.prepare-level1-matrix.outputs.matrix }}
+      branch: ${{ inputs.branch }}
+
+  prepare-level2-matrix:
+    needs: build-level1-images
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.prepare.outputs.matrix }}
+      has-jobs: ${{ steps.prepare.outputs.has-jobs }}
+    steps:
+      - name: Prepare level 2 matrix
+        id: prepare
+        shell: bash
+        run: |
+          # Get dependent jobs from the previous job output
+          dependent_jobs='${{ needs.build-level1-images.outputs.dependent-jobs }}'
+
+          if [ -z "$dependent_jobs" ] || [ "$dependent_jobs" = "null" ] || [ "$dependent_jobs" = "" ]; then
+            echo "has-jobs=false" >> $GITHUB_OUTPUT
+            echo "matrix={\"config\":[]}" >> $GITHUB_OUTPUT
+          else
+            echo "has-jobs=true" >> $GITHUB_OUTPUT
+            echo "matrix={\"config\":$dependent_jobs}" >> $GITHUB_OUTPUT
+          fi
+
+  build-level2-images:
+    needs: prepare-level2-matrix
+    if: needs.prepare-level2-matrix.outputs.has-jobs == 'true'
+    uses: ./.github/workflows/build-nightly-images.yaml
+    with:
+      matrix-config: ${{ needs.prepare-level2-matrix.outputs.matrix }}
+      branch: ${{ inputs.branch }}

@@ -1,0 +1,81 @@
+name: Build Nightly Images (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      matrix-config:
+        description: 'JSON string containing the matrix configuration'
+        required: true
+        type: string
+      branch:
+        description: 'Branch to build from'
+        required: true
+        type: string
+    outputs:
+      dependent-jobs:
+        description: 'Dependent jobs to build next'
+        value: ${{ jobs.build-images.outputs.dependent-jobs }}
+
+jobs:
+  build-images:
+    runs-on: ubuntu-latest
+    outputs:
+      dependent-jobs: ${{ steps.collect-dependents.outputs.dependent-jobs }}
+    strategy:
+      matrix: ${{ fromJSON(inputs.matrix-config) }}
+    steps:
+      - name: Checkout repo
+        id: checkout
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ matrix.config.repo }}
+          ref: ${{ inputs.branch }}
+
+      - name: Update go mod to the branch
+        id: go_mod
+        shell: bash
+        if: matrix.config.go_mod_update != '' && matrix.config.go_mod_update[0] != null
+        run: |
+          for mod_update in ${{ join(matrix.config.go_mod_update, ' ') }}
+          do
+            echo "updating go mod $mod_update"
+            go get -u $mod_update
+          done
+
+      - name: Get Nightly Tag
+        id: get_tag
+        shell: bash
+        run: |
+          date=$(date +'%Y.%m.%d')
+          echo "tag=${{ inputs.branch }}_$date" >> $GITHUB_OUTPUT
+
+      - name: build image
+        id: build-image
+        uses: shawn-hurley/ci/build-image@main
+        with:
+          repo: ${{ matrix.config.repo }}
+          ref: ${{ inputs.branch }}
+          image_name: ${{ matrix.config.image }}
+          image_tag: ${{ steps.get_tag.outputs.tag }}
+          dockerfile_path: ${{ matrix.config.dockerfile_path }}
+          build_context: ${{ matrix.config.context_path }}
+          build_args: ${{ matrix.config.args }}
+          checked_out: true
+          base_image: ${{ matrix.config.base_image }}
+
+      - name: Collect dependent jobs
+        id: collect-dependents
+        if: success() && matrix.config.dependent_jobs != '' && matrix.config.dependent_jobs[0] != null
+        shell: bash
+        run: |
+          # Install jq for JSON manipulation
+          sudo apt-get update && sudo apt-get install -y jq
+
+          # Get the artifact name from the build step
+          BASE_IMAGE="${{ steps.build-image.outputs.file_name }}"
+
+          # Inject the base_image field into each dependent job
+          DEPENDENT_JOBS='${{ toJSON(matrix.config.dependent_jobs) }}'
+          MODIFIED_JOBS=$(echo "$DEPENDENT_JOBS" | jq --arg base "$BASE_IMAGE" 'map(. + {base_image: $base})')
+
+          echo "dependent-jobs=$MODIFIED_JOBS" >> $GITHUB_OUTPUT

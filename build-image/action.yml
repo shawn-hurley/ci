@@ -43,6 +43,12 @@ inputs:
       If the repository is already checked out
     type: boolean
     default: false
+  build_args:
+    description: |
+      Build arguments to pass to podman build (e.g., "ARG1=value1 ARG2=value2")
+    type: string
+    required: false
+    default: ""
 
 
 runs:
@@ -95,10 +101,20 @@ runs:
         IMAGE_TAG="${{ inputs.image_tag }}"
         FILE_NAME="${IMAGE_NAME//\//_}--${IMAGE_TAG//\//_}"
 
-        echo "Building image: ${FULL_IMAGE_NAME}"
+        # Parse build args
+        BUILD_ARGS=""
+        if [ -n "${{ inputs.build_args }}" ]; then
+          for arg in ${{ inputs.build_args }}; do
+            BUILD_ARGS="${BUILD_ARGS} --build-arg ${arg}"
+          done
+        fi
+
+        echo "Building image: ${IMAGE_NAME}:${IMAGE_TAG}"
+        echo "Build args: ${BUILD_ARGS}"
         podman build \
           -f "${{ inputs.dockerfile_path }}" \
           -t "${IMAGE_NAME}:${IMAGE_TAG}" \
+          ${BUILD_ARGS} \
           "${{ inputs.build_context }}"
 
         echo "Saving image to tar file..."
