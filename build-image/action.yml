@@ -86,7 +86,7 @@ runs:
       run: |
         IMAGE_NAME="${{ inputs.image_name }}"
         IMAGE_TAG="${{ inputs.image_tag }}"
-        FILE_NAME="${IMAGE_NAME//\//_}"
+        FILE_NAME="${IMAGE_NAME//\//_}--${IMAGE_TAG//\//_}"
 
         echo "Building image: ${FULL_IMAGE_NAME}"
         podman build \
@@ -104,6 +104,7 @@ runs:
         echo "image_name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
         echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
         echo "tar_file=${TAR_FILE}" >> $GITHUB_OUTPUT
+        echo "file_name=${FILE_NAME}" >> $GITHUB_OUTPUT
 
     - name: Upload image artifact
       uses: actions/upload-artifact@v4
