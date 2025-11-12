@@ -68,9 +68,6 @@ jobs:
             image: quay.io/konveyor/tackle2-addon-discovery
             dockerfile_path: "Dockerfile"
             context_path: "."
-            go_mod_update:
-              - "github.com/konveyor/tackle2-hub@${{ inputs.branch }}"
-              - "github.com/konveyor/tackle2-addon@${{ inputs.branch }}"
           - repo: "konveyor/java-analyzer-bundle"
             image: "quay.io/konveyor/jdtls-server-base"
             dockerfile_path: "Dockerfile"
@@ -87,8 +84,6 @@ jobs:
                     context_path: "."
                     go_mod_update:
                       - "github.com/konveyor/analyzer-lsp@${{ inputs.branch }}"
-                      - "github.com/konveyor/tackle2-addon@${{ inputs.branch }}"
-                      - "github.com/konveyor/tackle2-hub@${{ inputs.branch }}"
               - repo: "konveyor/analyzer-lsp" 
                 image: "quay.io/konveyor/golang-dependency-provider"
                 dockerfile_path: "./external-providers/golang-dependency-provider/Dockerfile"
