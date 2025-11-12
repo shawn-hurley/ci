@@ -109,7 +109,7 @@ runs:
     - name: Upload image artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ steps.build_image.outputs.tar_file }}
+        name: ${{ steps.build_image.outputs.file_name }}
         path: ${{ steps.build_image.outputs.tar_file }}
         retention-days: 1
 
