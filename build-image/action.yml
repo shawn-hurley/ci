@@ -49,7 +49,7 @@ runs:
   using: "composite"
   steps:
     - name: Checkout repository
-      if: !inputs.checked_out 
+      if: ${{ inputs.checked_out == 'false' }}
       uses: actions/checkout@v4
       with:
         repository: ${{ inputs.repo }}
