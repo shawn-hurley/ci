@@ -144,7 +144,7 @@ jobs:
       - name: Update go mod to the branch
         id: go_mod
         shell: bash
-        if: matrix.config.go_mod_update != "" && matrix.config.go_mod_update[0] != null
+        if: matrix.config.go_mod_update != '' && matrix.config.go_mod_update[0] != null
         run: |
           for mod_update in ${{ join(fromJSON(matrix.config.go_mod_update), ' ') }}
           do
