@@ -67,6 +67,7 @@ runs:
         path: |
           /var/tmp/buildah-cache
           $TMPDIR/buildah-cache
+          ${{ runner.temp }}/buildah-cache
         key: ${{ runner.os }}-podman-buildcache
         restore-keys: |
           ${{ runner.os }}-podman-buildcache

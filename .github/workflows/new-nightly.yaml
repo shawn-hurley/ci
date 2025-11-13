@@ -1,8 +1,5 @@
 name: Konveyor e2e nightly
 
-on:
-  schedule:
-    - cron: "5 3 * * *"
   workflow_call:
     inputs:
       branch:
@@ -135,3 +132,13 @@ jobs:
     with:
       matrix-config: ${{ needs.prepare-level2-matrix.outputs.matrix }}
       branch: ${{ inputs.branch }}
+
+
+  # Now that all the images are built, we need to build the operator image.
+  #
+  #
+  # Now we need to test full e2e kantra, kai, and the ui/operator.
+  # The e2e tests for these, should be in the repos, because an end user
+  # may need to debug them. 
+  # For now, to get this workflow working, and show it, I will create the matrix
+  
