@@ -36,11 +36,19 @@ jobs:
         shell: bash
         if: matrix.config.go_mod_update != '' && matrix.config.go_mod_update[0] != null
         run: |
+          # Change to the specified directory if provided, otherwise use current directory
+          GO_MOD_DIR="${{ matrix.config.go_mod_directory || '.' }}"
+          cd "$GO_MOD_DIR"
+          echo "Running go mod commands in directory: $(pwd)"
+
           for mod_update in ${{ join(matrix.config.go_mod_update, ' ') }}
           do
             echo "updating go mod $mod_update"
             go get -u $mod_update
           done
+
+          # Run go mod tidy to clean up
+          go mod tidy
 
       - name: Get Nightly Tag
         id: get_tag

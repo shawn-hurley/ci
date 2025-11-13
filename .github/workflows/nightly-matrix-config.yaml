@@ -47,6 +47,7 @@ config:
         context_path: "."
         go_mod_update:
           - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
+        go_mod_directory: "./external-providers/golang-dependency-provider"
         dependent_jobs:
           - repo: "konveyor/analyzer-lsp"
             image: "quay.io/konveyor/generic-external-provider"
@@ -54,6 +55,7 @@ config:
             context_path: "."
             go_mod_update:
               - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
+            go_mod_directory: "./external-providers/generic-external-provider"
 
       - repo: "konveyor/analyzer-lsp"
         image: "quay.io/konveyor/yq-external-provider"
@@ -61,6 +63,7 @@ config:
         context_path: "."
         go_mod_update:
           - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
+        go_mod_directory: "./external-providers/yq-external-provider"
 
       - repo: "konveyor/analyzer-lsp"
         image: "quay.io/konveyor/java-external-provider"
@@ -68,6 +71,7 @@ config:
         context_path: "."
         go_mod_update:
           - "github.com/konveyor/analyzer-lsp@BRANCH_PLACEHOLDER"
+        go_mod_directory: "./external-providers/java-external-provider"
 
   - repo: "konveyor/static-report"
     image: "quay.io/konveyor/static-report"
