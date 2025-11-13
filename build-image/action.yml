@@ -136,7 +136,15 @@ runs:
         name: ${{ steps.build_image.outputs.file_name }}
         path: ${{ steps.build_image.outputs.tar_file }}
         retention-days: 1
-
+    
+    - name: Print Possible Podman Dirs
+      id: debug
+      shell: bash
+      run: |
+        ls -la /var/tmp/
+        ls -la $TMPDIR/
+        ls -la ${{ runner.temp }}/
+      
     - name: Summary
       shell: bash
       run: |
@@ -144,3 +152,4 @@ runs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "- **Image Name**: ${{ steps.build_image.outputs.full_image_name }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Artifact Name**: ${{ steps.build_image.outputs.image_name }}-${{ steps.build_image.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+    
