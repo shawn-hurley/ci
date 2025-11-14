@@ -64,10 +64,7 @@ runs:
     - name: Setup podman build cache
       uses: actions/cache@v4
       with:
-        path: |
-          /var/tmp/buildah-cache
-          $TMPDIR/buildah-cache
-          ${{ runner.temp }}/buildah-cache
+        path: /var/tmp/buildah-cache-1001
         key: ${{ runner.os }}-podman-buildcache
         restore-keys: |
           ${{ runner.os }}-podman-buildcache
@@ -137,13 +134,6 @@ runs:
         path: ${{ steps.build_image.outputs.tar_file }}
         retention-days: 1
     
-    - name: Print Possible Podman Dirs
-      id: debug
-      shell: bash
-      run: |
-        ls -la /var/tmp/
-        ls -la $TMPDIR/
-        ls -la ${{ runner.temp }}/
       
     - name: Summary
       shell: bash
