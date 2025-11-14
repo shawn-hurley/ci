@@ -45,7 +45,6 @@ runs:
         echo "::notice::Found last workflow at Date: $PARSED_DATE"
 
     - uses: actions/download-artifact@v5
-      needs: find-run
       with:
         pattern: --${ needs.find-run.date }}
         path: ${{ inputs.path }}
