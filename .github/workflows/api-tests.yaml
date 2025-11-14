@@ -1,5 +1,6 @@
 name: Konveyor e2e Hub API Tests
 
+on:
   workflow_call:
   workflow_dispatch:
 
