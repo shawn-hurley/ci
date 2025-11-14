@@ -49,7 +49,12 @@ inputs:
     type: string
     required: false
     default: ""
-
+  cache-key-file:
+    description: |
+      This is going to the be file that will deterimine if there is a cache, based on it's hash.
+    type: string
+    default: go.sum
+    required: false
 
 runs:
   using: "composite"
@@ -65,9 +70,9 @@ runs:
       uses: actions/cache@v4
       with:
         path: /var/tmp/buildah-cache-1001
-        key: ${{ runner.os }}-podman-buildcache
+        key: ${{ inputs.image_name }}-${{ hashFiles(inputs.cache-key-file) }}
         restore-keys: |
-          ${{ runner.os }}-podman-buildcache
+          ${{ inputs.image_name }}-${{ hashFiles(inputs.cache-key-file) }}
 
     - name: Download base image artifact
       if: "${{ inputs.base_image != '' }}"
@@ -142,4 +147,4 @@ runs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "- **Image Name**: ${{ steps.build_image.outputs.full_image_name }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Artifact Name**: ${{ steps.build_image.outputs.image_name }}-${{ steps.build_image.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
-    
+        
