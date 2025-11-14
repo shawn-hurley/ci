@@ -3,10 +3,12 @@ description: 'Downloads artifacts from the last successful run nightlies for the
 
 inputs:
   branch:
-    description: 'The branch the current test is testing against'
+    description: |
+      The branch the current test is testing against
     required: true
   path:
-    description: 'The path to output the image tar's'
+    description: | 
+      The path to output the image tar's
     type: string
     default: "/tmp/images"
 
