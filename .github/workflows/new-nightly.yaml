@@ -1,5 +1,6 @@
 name: Konveyor e2e nightly
 
+on:
   workflow_call:
     inputs:
       branch:
