@@ -1,0 +1,114 @@
+name: Download Last Nightly Artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      workflow_name:
+        description: 'The workflow name to download artifacts from (e.g., new-nightly.yaml)'
+        required: false
+        type: string
+        default: 'new-nightly.yaml'
+      branch:
+        description: 'Branch to filter workflow runs by'
+        required: false
+        type: string
+        default: 'main'
+      artifact_name:
+        description: 'Specific artifact name to download (leave empty for all artifacts)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  download-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find last successful workflow run
+        id: find-run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Find the last successful workflow run for the specified workflow
+          RUN_ID=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${{ github.repository }}/actions/workflows/${{ inputs.workflow_name }}/runs?status=success&branch=${{ inputs.branch }}&per_page=1" \
+            --jq '.workflow_runs[0].id')
+
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "No successful workflow runs found for ${{ inputs.workflow_name }} on branch ${{ inputs.branch }}"
+            exit 1
+          fi
+
+          echo "run-id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "Found workflow run ID: $RUN_ID"
+
+          # Get the workflow run details
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${{ github.repository }}/actions/runs/$RUN_ID" \
+            --jq '{id: .id, name: .name, status: .status, conclusion: .conclusion, created_at: .created_at, html_url: .html_url}' | tee run-details.json
+
+          echo "### Last Successful Workflow Run" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run ID**: $RUN_ID" >> $GITHUB_STEP_SUMMARY
+          echo "- **Workflow**: ${{ inputs.workflow_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ inputs.branch }}" >> $GITHUB_STEP_SUMMARY
+          cat run-details.json >> $GITHUB_STEP_SUMMARY
+
+      - name: List available artifacts
+        id: list-artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_ID="${{ steps.find-run.outputs.run-id }}"
+
+          echo "### Available Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # List all artifacts from the workflow run
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts" \
+            --jq '.artifacts[] | {name: .name, size_in_bytes: .size_in_bytes, expired: .expired}' | tee artifacts-list.json
+
+          # Add to summary
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts" \
+            --jq '.artifacts[] | "- **\(.name)** (\(.size_in_bytes) bytes) - Expired: \(.expired)"' >> $GITHUB_STEP_SUMMARY
+
+      - name: Download artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_ID="${{ steps.find-run.outputs.run-id }}"
+          ARTIFACT_NAME="${{ inputs.artifact_name }}"
+
+          mkdir -p downloaded-artifacts
+
+          if [ -n "$ARTIFACT_NAME" ]; then
+            # Download specific artifact
+            echo "Downloading artifact: $ARTIFACT_NAME"
+            gh run download "$RUN_ID" -n "$ARTIFACT_NAME" -D "downloaded-artifacts/$ARTIFACT_NAME"
+          else
+            # Download all artifacts
+            echo "Downloading all artifacts from run $RUN_ID"
+            gh run download "$RUN_ID" -D downloaded-artifacts
+          fi
+
+          echo "### Downloaded Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          find downloaded-artifacts -type f >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload downloaded artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: last-nightly-artifacts
+          path: downloaded-artifacts/
+          retention-days: 7

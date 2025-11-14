@@ -1,0 +1,63 @@
+name: Konveyor e2e Hub API Tests
+
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  test-e2e-hub-api:
+    runs-on: ubuntu-latest
+    steps:
+      # First we will create a kind cluster
+      - name: Start kind cluster
+        id: kind-cluster
+        uses: helm/kind-action@v1
+      ## then  we will need to get all the images and load them into kind.
+      # Once all the images are loaded into kind, we will need to build a new operator image
+      # Pointing to the images and install that operator into the cluster
+      # once the operator is installed we will run the API tests.
+      # these will be differnt then they are today.
+      #
+      # Download artifacts from the last successful nightly build
+      - name: Download artifacts from last nightly build
+        id: download-artifacts
+        uses: shawn-hurley/ci/download-last-artifacts@main
+        with:
+          branch: ${{ github.base_ref || github.ref }}
+          path: '/tmp/nightly-artifacts'
+
+      - name: Load images into kind
+        env:
+          ARTIFACTS_PATH: ${{ steps.download-artifacts.outputs.artifacts-path }}
+        run: |
+          echo "Loading container images from $ARTIFACTS_PATH into kind cluster..."
+
+          # Find and load all tar files (container images)
+          for image_tar in $(find "${ARTIFACTS_PATH}" -type f -name "*.tar"); do
+            echo "Loading image: ${image_tar}"
+            kind load image-archive "${image_tar}"
+            rm "${image_tar}"
+          done
+
+          echo "Images loaded successfully"
+          docker exec -it kind-control-plane crictl images
+
+      # TODO: Install operator and run API tests
+      - name: Install konveyor operator
+        run: |
+          echo "Install operator with images from nightly build"
+          # Add your operator installation steps here
+
+      - name: Run API tests
+        run: |
+          echo "Running API tests"
+          # Add your API test steps here
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-results
+          path: test-results/
+
+      
+
