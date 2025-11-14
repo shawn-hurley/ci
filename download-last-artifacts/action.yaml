@@ -39,7 +39,7 @@ runs:
           exit 1
         fi
 
-        PARSED_DATE = $(date -d $DATE +'%Y.%m.%d')
+        PARSED_DATE=$(date -d $DATE +'%Y.%m.%d')
 
         echo "date=$PARSED_DATE" >> $GITHUB_OUTPUT
         echo "::notice::Found last workflow at Date: $PARSED_DATE"
