@@ -65,7 +65,7 @@ runs:
   using: "composite"
   steps:
     - name: Checkout repository
-      if: ${{ !inputs.checked_out }}
+      if: ${{ !fromJSON(inputs.checked_out) }}
       uses: actions/checkout@v4
       with:
         repository: ${{ inputs.repo }}
