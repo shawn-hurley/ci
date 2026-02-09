@@ -1,0 +1,164 @@
+name: Run Koncur nightly
+
+on:
+  schedule:
+    - cron: "5 3 * * *"
+  workflow_call:
+    inputs:
+      branch:
+        description: |
+          The branch that should be used to pull all konveyor related repos.
+          For example, if you wanted to set a nightly build for release-0.8, you would specify
+          "release-0.8".
+        required: false
+        type: string
+        default: main
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: |
+          The branch that should be used to pull all konveyor related repos.
+          For example, if you wanted to set a nightly build for release-0.8, you would specify
+          "release-0.8".
+        required: false
+        type: string
+        default: main 
+
+jobs:
+  nightly-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.get_tag.outputs.tag }}
+    steps:
+      - name: Get Nightly Tag
+        id: get_tag
+        shell: bash
+        run: |
+          date=$(date +'%Y.%m.%d')
+          echo "tag=${{ inputs.branch }}_$date" >> $GITHUB_OUTPUT
+
+  prepare-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix_0: ${{ steps.prepare.outputs.matrix_0 }}
+      matrix_1: ${{ steps.prepare.outputs.matrix_1 }}
+      matrix_2: ${{ steps.prepare.outputs.matrix_2 }}
+      matrix_3: ${{ steps.prepare.outputs.matrix_3 }}
+    steps:
+      - name: Checkout ci repo
+        uses: actions/checkout@v5
+
+      - name: Prepare matrix configs
+        id: prepare
+        shell: bash
+        run: |
+          # Install yq for YAML parsing
+          curl -sL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /tmp/yq
+          chmod +x /tmp/yq
+
+          # Read the config file and replace BRANCH_PLACEHOLDER with actual branch
+          config=$(/tmp/yq eval '.config' .github/workflows/nightly-matrix-config.yaml -o=json | sed "s/BRANCH_PLACEHOLDER/${{ inputs.branch }}/g")
+          echo $config
+          level_1_yaml=$(/tmp/yq eval '.config | map(.dependent_jobs) | flatten | [.[] | select(.)]' .github/workflows/nightly-matrix-config.yaml | sed "s/BRANCH_PLACEHOLDER/${{ inputs.branch }}/g")
+          echo $level_1_yaml
+          level_1=$(/tmp/yq eval '.config | map(.dependent_jobs) | flatten | [.[] | select(.)]' -o=json .github/workflows/nightly-matrix-config.yaml | sed "s/BRANCH_PLACEHOLDER/${{ inputs.branch }}/g")
+          echo $level_1
+          level_2_yaml=$(echo "$level_1_yaml" | /tmp/yq eval 'map(.dependent_jobs) | flatten | [.[] | select(.)]' -o=json)
+          echo $level_2_yaml
+          level_2=$(echo "$level_1_yaml" | /tmp/yq eval 'map(.dependent_jobs) | flatten | [.[] | select(.)]' -o=json)
+          echo $level_2
+          level_3=$(echo "$level_2_yaml" | /tmp/yq eval 'map(.dependent_jobs) | flatten | [.[] | select(.)]' -o=json)
+          echo $level_3
+
+          {
+            echo "matrix_0<<EOF"
+            echo "{\"config\":$config}"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          {
+            echo "matrix_1<<EOF"
+            echo "{\"config\":$level_1}"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          {
+            echo "matrix_2<<EOF"
+            echo "{\"config\":$level_2}"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          {
+            echo "matrix_3<<EOF"
+            echo "{\"config\":$level_3}"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+  
+  build-images:
+    name: "Build level 0 images"
+    needs: prepare-matrix
+    if: ${{ toJSON(needs.prepare-matrix.outputs.matrix_0) != '[]' }}
+    uses: ./.github/workflows/build-nightly-images.yaml
+    with:
+      matrix-config: ${{ needs.prepare-matrix.outputs.matrix_0 }}
+      branch: ${{ inputs.branch }}
+
+  build-level1-images:
+    name: "Build level 1 images"
+    needs: 
+    - prepare-matrix
+    - build-images
+    if: ${{ toJSON(needs.prepare-matrix.outputs.matrix_1) != '[]' }}
+    uses: ./.github/workflows/build-nightly-images.yaml
+    with:
+      matrix-config: ${{ needs.prepare-matrix.outputs.matrix_1 }}
+      branch: ${{ inputs.branch }}
+
+  build-level2-images:
+    name: "Build level 2 images"
+    needs: 
+    - prepare-matrix
+    - build-level1-images
+    if: ${{ toJSON(needs.prepare-matrix.outputs.matrix_2) != '[]' }}
+    uses: ./.github/workflows/build-nightly-images.yaml
+    with:
+      matrix-config: ${{ needs.prepare-matrix.outputs.matrix_2 }}
+      branch: ${{ inputs.branch }}
+  
+  build-level3-images:
+    name: "Build level 3 images"
+    needs: 
+    - prepare-matrix
+    - build-level2-images
+    if: ${{ toJSON(needs.prepare-matrix.outputs.matrix_3) != '[]' }}
+    uses: ./.github/workflows/build-nightly-images.yaml
+    with:
+      matrix-config: ${{ needs.prepare-matrix.outputs.matrix_3 }}
+      branch: ${{ inputs.branch }}
+     
+## Now that all the images are built, we need to build the operator image.
+##
+##
+## Now we need to test full e2e kantra, kai, and the ui/operator.
+## The e2e tests for these, should be in the repos, because an end user
+## may need to debug them. 
+# # For now, to get this workflow working, and show it, I will create the matrix
+#
+## To start, I am going to add back something that looks like the API tests
+## And something that looks like the UI tests.  
+#
+# This will just do kantra testing on the images now.
+#
+#
+  run-koncur-action:
+    runs-on: ubuntu-latest
+    needs: 
+    - build-level3-images
+    - nightly-tag
+    steps:
+      - name: Run Koncur Testing
+        id: koncur-test
+        uses: shawn-hurley/ci/koncur-kantra@main
+        with:
+          branch: ${{ inputs.branch }}
+          os: "linux"
+          image_pattern: |
+            *{kantra,provider}--${{ needs.nightly-tag.outputs.tag }}
+

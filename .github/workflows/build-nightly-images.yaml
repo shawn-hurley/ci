@@ -1,0 +1,71 @@
+name: Build Nightly Images (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      matrix-config:
+        description: 'JSON string containing the matrix configuration'
+        required: true
+        type: string
+      branch:
+        description: 'Branch to build from'
+        required: true
+        type: string
+    outputs:
+      dependent-jobs:
+        description: 'Dependent jobs to build next'
+        value: ${{ jobs.build-images.outputs.dependent-jobs }}
+
+jobs:
+  build-images:
+    name: Build Images ${{ matrix.config.image }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJSON(inputs.matrix-config) }}
+    steps:
+      - name: Checkout repo
+        id: checkout
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ matrix.config.repo }}
+          ref: ${{ inputs.branch }}
+
+      - name: Update go mod to the branch
+        id: go_mod
+        shell: bash
+        if: matrix.config.go_mod_update != '' && matrix.config.go_mod_update[0] != null
+        run: |
+          # Change to the specified directory if provided, otherwise use current directory
+          GO_MOD_DIR="${{ matrix.config.go_mod_directory || '.' }}"
+          cd "$GO_MOD_DIR"
+          echo "Running go mod commands in directory: $(pwd)"
+
+          for mod_update in ${{ join(matrix.config.go_mod_update, ' ') }}
+          do
+            echo "updating go mod $mod_update"
+            go get -u $mod_update
+          done
+
+          # Run go mod tidy to clean up
+          go mod tidy
+
+      - name: Get Nightly Tag
+        id: get_tag
+        shell: bash
+        run: |
+          date=$(date +'%Y.%m.%d')
+          echo "tag=${{ inputs.branch }}_$date" >> $GITHUB_OUTPUT
+
+      - name: build image
+        id: build-image
+        uses: konveyor/ci/build-image@main
+        with:
+          repo: ${{ matrix.config.repo }}
+          ref: ${{ inputs.branch }}
+          image_name: ${{ matrix.config.image }}
+          image_tag: ${{ steps.get_tag.outputs.tag }}
+          dockerfile_path: ${{ matrix.config.dockerfile_path }}
+          build_context: ${{ matrix.config.context_path }}
+          build_args: ${{ matrix.config.args }}
+          checked_out: true
+          base_image: ${{ matrix.config.base_image }}
