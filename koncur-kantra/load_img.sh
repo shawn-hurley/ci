@@ -1,3 +1,5 @@
+#!/bin/bash
+
 FILE_PATH=$1
 kantra_image_regex=".*kantra.*"
 java_provider_image_regex=".*java(-external)?-provider.*"
