@@ -1,9 +1,4 @@
 config:
-  - repo: "konveyor/tackle-keycloak-theme"
-    image: "quay.io/konveyor/tackle-keycloak-init"
-    dockerfile_path: "Dockerfile.init"
-    context_path: "."
-
   - repo: "konveyor/tackle2-ui"
     image: "quay.io/konveyor/tackle2-ui"
     dockerfile_path: "Dockerfile"
