@@ -157,19 +157,19 @@ runs:
           done
         fi
 
-        echo "Building image: ${IMAGE_NAME}:${IMAGE_TAG}"
+        echo "Building image: ${IMAGE_NAME}:${IMAGE_TAG} manifest list"
         echo "Build args: ${BUILD_ARGS}"
-        podman build \
+        podman build  \
+          -t ${IMAGE_NAME}:${IMAGE_TAG} \
           -f "${{ inputs.dockerfile_path }}" \
-          -t "${IMAGE_NAME}:${IMAGE_TAG}" \
           ${BUILD_ARGS:-} \
           "${{ inputs.build_context }}"
-
+        
         echo "Saving image to tar file..."
         TAR_FILE="image_artifact/${FILE_NAME}.tar"
         mkdir -p image_artifact/
-        echo "Running podman save ${IMAGE_NAME}:${IMAGE_TAG} -o ${TAR_FILE}" 
-        podman save "${IMAGE_NAME}:${IMAGE_TAG}" -o "${TAR_FILE}"
+        echo "Running podman save --format=docker-archive -m ${IMAGE_NAME}:${IMAGE_TAG} -o ${TAR_FILE}" 
+        podman save --format=docker-archive -m "${IMAGE_NAME}:${IMAGE_TAG}" -o "${TAR_FILE}"
         
 
         echo "image_name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
