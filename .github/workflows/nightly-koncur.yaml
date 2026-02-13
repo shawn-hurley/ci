@@ -157,7 +157,7 @@ jobs:
     steps:
       - name: Run Koncur Testing
         id: koncur-test
-        uses: shawn-hurley/ci/koncur-kantra@main
+        uses: konveyor/ci/koncur-kantra@main
         with:
           branch: ${{ inputs.branch }}
           os: ${{ matrix.os.os }}
