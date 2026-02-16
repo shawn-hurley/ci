@@ -86,6 +86,11 @@ runs:
         ${GITHUB_ACTION_PATH}/load_img.sh ${RUNNER_TEMP}/images
         rm -rf ${RUNNER_TEMP}/images
 
+    - name: Check and download missing images
+      shell: bash
+      run: |
+        ${GITHUB_ACTION_PATH}/check_images.sh
+
     ## Koncur testing
     - name: Download and install kantra (macos)
       if: ${{ inputs.os == 'macos' }}
@@ -213,4 +218,3 @@ runs:
         name: koncur-kantra-${{ inputs.os }}-summary
         path: test.yaml
         retention-days: 3
-

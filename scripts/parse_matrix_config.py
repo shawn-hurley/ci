@@ -36,43 +36,64 @@ def replace_branch_placeholder(obj: Any, branch_name: str) -> Any:
         return obj
 
 
-def organize_by_levels(config_items: List[Dict[str, Any]], base_image_tag: str = None) -> List[List[Dict[str, Any]]]:
+def organize_by_levels(config_items: List[Dict[str, Any]], base_image_tag: str = None, repo_filter: str = None) -> List[List[Dict[str, Any]]]:
     """
     Organize configuration items into levels based on dependency depth.
 
     Args:
         config_items: List of configuration dictionaries from the YAML
         base_image_tag: Optional tag to append to base_image (e.g., "nightly", "v1.0")
+        repo_filter: Optional repository name to filter jobs at any level (e.g., "konveyor/kantra")
 
     Returns:
         List of lists, where each inner list contains jobs at that dependency level
     """
     levels = defaultdict(list)
 
-    def process_job(job: Dict[str, Any], level: int, parent_image: str = None):
-        """Recursively process a job and its dependencies."""
-        # Create a copy of the job without dependent_jobs for the output
-        job_copy = {k: v for k, v in job.items() if k != 'dependent_jobs'}
+    def find_and_process_matching_jobs(job: Dict[str, Any], level: int, parent_image: str = None, include: bool = False) -> bool:
+        """
+        Recursively search for jobs matching the repo filter and process them.
 
-        # Add base_image field for dependent jobs
-        if parent_image:
-            parent_image = parent_image.replace("/", "_")
-            if base_image_tag:
-                job_copy['base_image'] = f"{parent_image}--{base_image_tag}"
-            else:
-                job_copy['base_image'] = parent_image
+        Args:
+            job: The job to process
+            level: Current dependency level
+            parent_image: Parent image for base_image field
+            include: Whether this job should be included (parent was matched)
 
-        levels[level].append(job_copy)
+        Returns:
+            True if this job or any descendant matches the filter
+        """
+        # Check if this job matches the filter
+        matches = repo_filter is None or job.get('repo') == repo_filter
 
-        # Process dependent jobs at the next level, passing this job's image as base_image
+        # Check if any dependent jobs match (look ahead)
+        has_matching_descendant = False
         if 'dependent_jobs' in job:
-            current_image = job.get('image')
             for dependent_job in job['dependent_jobs']:
-                process_job(dependent_job, level + 1, current_image)
+                if find_and_process_matching_jobs(dependent_job, level + 1, job.get('image'), include or matches):
+                    has_matching_descendant = True
+
+        # Include this job if it matches or we're already including (parent matched)
+        # Don't include just because of matching descendants
+        if matches or include:
+            job_copy = {k: v for k, v in job.items() if k != 'dependent_jobs'}
+
+            # Add base_image field for dependent jobs
+            if parent_image:
+                parent_image = parent_image.replace("/", "_")
+                if base_image_tag:
+                    job_copy['base_image'] = f"{parent_image}--{base_image_tag}"
+                else:
+                    job_copy['base_image'] = parent_image
+
+            levels[level].append(job_copy)
+            return True
+
+        return has_matching_descendant
 
     # Process all top-level jobs
     for job in config_items:
-        process_job(job, 0)
+        find_and_process_matching_jobs(job, 0)
 
     # Convert defaultdict to sorted list of lists
     max_level = max(levels.keys()) if levels else 0
@@ -88,6 +109,7 @@ def main():
     parser.add_argument('output_dir', nargs='?', help='Optional output directory for JSON files')
     parser.add_argument('-t', '--tag', help='Tag to append to base_image (e.g., "nightly", "v1.0")')
     parser.add_argument('-b', '--branch', help='Branch name to replace BRANCH_PLACEHOLDER with')
+    parser.add_argument('-r', '--repo', help='Filter to only include jobs from this repository (e.g., "konveyor/kantra"). Dependent jobs will still be included.')
 
     args = parser.parse_args()
 
@@ -105,7 +127,7 @@ def main():
             data = replace_branch_placeholder(data, args.branch)
 
         # Organize jobs by dependency levels
-        levels = organize_by_levels(data['config'], args.tag)
+        levels = organize_by_levels(data['config'], args.tag, args.repo)
 
         # Print the results summary
         print(f"Found {len(levels)} dependency levels:\n")
