@@ -1,4 +1,4 @@
-name: Run Koncur nightly
+name: e2e Testing Image Build
 
 on:
   workflow_call:
@@ -22,12 +22,13 @@ on:
           The tag to use for the images
         required: false
         type: string
-        default: ${{ github.run_id }}
   workflow_dispatch:
     inputs:
       repo:
         description: |
           This is the repo to simulate the testing from.
+        required: false
+        type: string
       ref:
         description: |
           The ref that should be tested from. Could be a branch or PR. that should be used to pull all konveyor related repos.
@@ -35,13 +36,11 @@ on:
           "release-0.8".
         required: false
         type: string
-        default: main 
       tag:
         description: |
           The tag to use for the images
         required: false
         type: string
-        default: ${{ github.run_id }}
 
 jobs:
   prepare-matrix:
@@ -66,7 +65,7 @@ jobs:
         run: |
           
           pip install -r scripts/requirements.txt
-          python scripts/get_repo_matrix .github/workflows/nightly-matrix-config.yaml -t ${{ inputs.tag }} -b ${{ github.ref }} -r ${{ github.repository }} out
+          python scripts/parse_matrix_config.py .github/workflows/nightly-matrix-config.yaml -t ${{ inputs.tag || github.run_id }} -b ${{ inputs.ref || github.ref }} -r ${{ inputs.repo || github.repository }} out
 
           # The output may be one ore more of these, we should handle the case where these are empty.
           matrix_0=$(cat out/level_0.json)
@@ -97,45 +96,49 @@ jobs:
   
   build-images:
     name: "Build level 0 images"
-    if: ${{ needs.prepare-matrix.outputs.matrix_0.image != '[]' }}
+    if: ${{ fromJSON(needs.prepare-matrix.outputs.matrix_0).image[0] != null }}
     needs: prepare-matrix
-    uses: ./.github/workflows/build-nightly-images.yaml
+    uses: shawn-hurley/ci/.github/workflows/build-nightly-images.yaml@main
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_0 }}
-      branch: ${{ inputs.branch }}
+      branch: main
+      tag: ${{ inputs.tag || github.run_id }}
 
   build-level1-images:
     name: "Build level 1 images"
-    if: ${{ needs.prepare-matrix.outputs.matrix_1.image != '[]' }}
+    if: ${{ !failure() && fromJSON(needs.prepare-matrix.outputs.matrix_1).image[0] != null }}
     needs: 
     - prepare-matrix
     - build-images
-    uses: ./.github/workflows/build-nightly-images.yaml
+    uses: shawn-hurley/ci/.github/workflows/build-nightly-images.yaml@main
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_1 }}
-      branch: ${{ inputs.branch }}
+      branch: main 
+      tag: ${{ inputs.tag || github.run_id }}
 
   build-level2-images:
     name: "Build level 2 images"
-    if: ${{ needs.prepare-matrix.outputs.matrix_2.image != '[]' }}
+    if: ${{ !failure() && fromJSON(needs.prepare-matrix.outputs.matrix_2).image[0] != null }}
     needs: 
     - prepare-matrix
     - build-level1-images
-    uses: ./.github/workflows/build-nightly-images.yaml
+    uses: shawn-hurley/ci/.github/workflows/build-nightly-images.yaml@main
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_2 }}
-      branch: ${{ inputs.branch }}
+      branch: main 
+      tag: ${{ inputs.tag || github.run_id }}
   
   build-level3-images:
     name: "Build level 3 images"
-    if: ${{ needs.prepare-matrix.outputs.matrix_3.image != '[]' }}
+    if: ${{ !failure() && fromJSON(needs.prepare-matrix.outputs.matrix_3).image[0] != null }}
     needs: 
     - prepare-matrix
     - build-level2-images
-    uses: ./.github/workflows/build-nightly-images.yaml
+    uses: shawn-hurley/ci/.github/workflows/build-nightly-images.yaml@main
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_3 }}
-      branch: ${{ inputs.branch }}
+      branch: main
+      tag: ${{ inputs.tag || github.run_id }}
      
 #
 #
@@ -160,6 +163,6 @@ jobs:
         with:
           os: ${{ matrix.os.os }}
           image_pattern: |
-            *{kantra,provider}--${{ github.run_id }}
-          ref: ${{ inputs.branch }}
+            *{kantra,provider}--${{ inputs.tag || github.run_id }}
+          ref: 'main'
 

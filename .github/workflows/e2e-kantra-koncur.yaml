@@ -40,6 +40,10 @@ jobs:
             runner: "macos-26-large"
           - os: "windows"
             runner: "windows-latest"
+        exclude:
+          - os: 
+              os: "macos"
+              runner: "macos-26-large"
     runs-on: ${{ matrix.os.runner }}
     steps:
       - name: Run Koncur Testing

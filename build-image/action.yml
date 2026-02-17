@@ -80,6 +80,7 @@ runs:
           ${{ inputs.image_name }}-${{ hashFiles(inputs.cache-key-file) }}
 
     - name: Download base image artifact
+      continue-on-error: true 
       if: "${{ inputs.base_image != '' }}"
       id: download-artifact
       uses: actions/download-artifact@v4
@@ -87,11 +88,24 @@ runs:
         name: ${{ inputs.base_image }}
         path: /tmp/base_images
 
+    - name: If no base image in current run get nightly
+      id: download-nightly
+      if: ${{ steps.download-artifact.outcome == 'failure' }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+      shell: bash
+      run: |
+        BASE_IMG="${{ inputs.base_image }}"
+        ARTIFACT_PREFIX="${BASE_IMG%--*}"
+        WORKFLOW_RUN=$(gh run list -R=konveyor/ci --workflow=nightly-koncur.yaml --status=success --limit=1 --json databaseId --jq '.[0].databaseId')
+        gh run download -R konveyor/ci "$WORKFLOW_RUN" --pattern "${ARTIFACT_PREFIX}--*" --dir /tmp/base_images 
+        echo "download-path=/tmp/base_images" >> $GITHUB_OUTPUT
+
     - name: Load base image into podman
       if: "${{ inputs.base_image != '' }}"
       shell: bash
       env:
-        IMAGES_PATH: ${{ steps.download-artifact.outputs.download-path }}
+        IMAGES_PATH: ${{ steps.download-artifact.outputs.download-path || steps.download-nightly.outputs.download-path }}
       run: |
         echo "Loading base image from ${IMAGES_PATH}"
         for image in $(find "${IMAGES_PATH}" -type f -name "*.tar"); do

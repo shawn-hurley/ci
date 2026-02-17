@@ -3,6 +3,10 @@
 set -e
 
 REQUIRED_IMAGES=("quay.io/konveyor/kantra" "quay.io/konveyor/c-sharp-provider" "quay.io/konveyor/java-external-provider" "quay.io/konveyor/generic-external-provider")
+kantra_image_regex=".*kantra.*"
+java_provider_image_regex=".*java(-external)?-provider.*"
+c_sharp_provider_image_regex=".*c-sharp-provider.*"
+generic_provider_image_regex=".*generic(-external)?-provider.*"
 
 echo "Checking for required podman images..."
 echo "------------------------------------------------------------"
@@ -66,7 +70,7 @@ if [ ${#MISSING[@]} -gt 0 ]; then
     echo "Attempting to download missing images from last successful nightly run..."
 
     # Find the last successful run of the nightly workflow
-    WORKFLOW_RUN=$(gh run list --workflow=nightly-koncur.yaml --status=success --limit=1 --json databaseId --jq '.[0].databaseId')
+    WORKFLOW_RUN=$(gh run list -R=konveyor/ci --workflow=nightly-koncur.yaml --status=success --limit=1 --json databaseId --jq '.[0].databaseId')
 
     if [ -z "$WORKFLOW_RUN" ]; then
         echo "Error: Could not find a successful nightly workflow run"
@@ -88,7 +92,7 @@ if [ ${#MISSING[@]} -gt 0 ]; then
         ARTIFACT_PREFIX="${img//\//_}"
 
         echo "Downloading artifacts matching: ${ARTIFACT_PREFIX}--*"
-        if gh run download "$WORKFLOW_RUN" --pattern "${ARTIFACT_PREFIX}--*" --dir "$TEMP_DIR" 2>/dev/null; then
+        if gh run download -R=konveyor/ci "$WORKFLOW_RUN" --pattern "${ARTIFACT_PREFIX}--*.[0-9][0-9]" --dir "$TEMP_DIR" 3>/dev/null; then
             DOWNLOAD_SUCCESS=1
         else
             echo "Warning: Could not download artifact for $img"
@@ -119,6 +123,24 @@ if [ ${#MISSING[@]} -gt 0 ]; then
             echo "Re-tagging to: $NEW_TAG"
             podman tag "$LOADED_IMAGE" "$NEW_TAG"
         fi
+        if [[ "$image" =~ $kantra_image_regex ]]; then
+            echo "Kantra Image Found Set Env Var: RUNNER_IMG=$NEW_TAG"
+            echo "RUNNER_IMG=$NEW_TAG" >> $GITHUB_ENV
+        fi
+        if [[ "$image" =~ $java_provider_image_regex ]]; then
+            echo "Java Provider Image Found Set Env Var: JAVA_PROVIDER_IMG=$NEW_TAG"
+            echo "JAVA_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+        fi
+        if [[ "$image" =~ $c_sharp_provider_image_regex ]]; then
+            echo "C Sharp Provider Found Set Env Var: CSHARP_PROVIDER_IMG=$NEW_TAG"
+            echo "CSHARP_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+        fi
+        if [[ "$image" =~ $generic_provider_image_regex ]]; then
+            echo "Generic Provider Image Found Set Env Var: GENERIC_PROVIDER_IMG=$NEW_TAG"
+            echo "GENERIC_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
+        fi
+
+
     done
 
     # Cleanup

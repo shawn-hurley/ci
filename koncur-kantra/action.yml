@@ -87,6 +87,8 @@ runs:
         rm -rf ${RUNNER_TEMP}/images
 
     - name: Check and download missing images
+      env:
+        GH_TOKEN: ${{ github.token }}
       shell: bash
       run: |
         ${GITHUB_ACTION_PATH}/check_images.sh

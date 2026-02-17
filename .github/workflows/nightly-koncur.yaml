@@ -90,7 +90,7 @@ jobs:
   build-images:
     name: "Build level 0 images"
     needs: prepare-matrix
-    uses: ./.github/workflows/build-nightly-images.yaml
+    uses: shawn-hurley/ci/.github/workflows/build-nightly-images.yaml@main
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_0 }}
       branch: ${{ inputs.branch || 'main' }}
@@ -100,7 +100,7 @@ jobs:
     needs: 
     - prepare-matrix
     - build-images
-    uses: ./.github/workflows/build-nightly-images.yaml
+    uses: shawn-hurley/ci/.github/workflows/build-nightly-images.yaml@main
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_1 }}
       branch: ${{ inputs.branch || 'main' }}
@@ -110,7 +110,7 @@ jobs:
     needs: 
     - prepare-matrix
     - build-level1-images
-    uses: ./.github/workflows/build-nightly-images.yaml
+    uses: shawn-hurley/ci/.github/workflows/build-nightly-images.yaml@main
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_2 }}
       branch: ${{ inputs.branch || 'main' }}
@@ -120,7 +120,7 @@ jobs:
     needs: 
     - prepare-matrix
     - build-level2-images
-    uses: ./.github/workflows/build-nightly-images.yaml
+    uses: shawn-hurley/ci/.github/workflows/build-nightly-images.yaml@main
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_3 }}
       branch: ${{ inputs.branch || 'main' }}
@@ -172,7 +172,7 @@ jobs:
     needs: 
     - build-level3-images
     - nightly-tag
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
     steps:
       - name: Run Koncur Testing
         id: koncur-test

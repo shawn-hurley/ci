@@ -23,6 +23,7 @@ runs:
       uses: actions/checkout@v6
       with:
         ref: ${{ inputs.ref || 'main' }}
+        repository: konveyor/koncur
 
     - name: Setup Go
       uses: actions/setup-go@v6
@@ -30,6 +31,7 @@ runs:
         go-version: '1.25'
 
     - name: Install Kind
+      shell: bash
       run: |
         curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.25.0/kind-linux-amd64
         chmod +x ./kind
@@ -37,6 +39,7 @@ runs:
         kind version
 
     - name: Install kubectl
+      shell: bash
       run: |
         curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
         chmod +x kubectl
@@ -44,20 +47,22 @@ runs:
         kubectl version --client
 
     - name: Create Kind cluster
+      shell: bash
       run: make kind-create
-      timeout-minutes: 10
 
     - name: Install Tackle Hub
+      shell: bash
       run: make hub-install
-      timeout-minutes: 20
 
     - name: Wait for Hub readiness
+      shell: bash
       run: |
         echo "Waiting for all Tackle Hub pods to be ready..."
         kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=tackle-hub \
           -n konveyor-tackle --timeout=300s
 
     - name: Start port-forward
+      shell: bash
       run: |
         echo "Starting port-forward to Tackle Hub..."
         kubectl port-forward -n konveyor-tackle svc/tackle-hub 8081:8080 &
@@ -92,6 +97,8 @@ runs:
     
     - name: Check and download missing images
       shell: bash
+      env:
+        GH_TOKEN: $(( github.token }}
       run: |
         ${GITHUB_ACTION_PATH}/check_images.sh
 
@@ -110,6 +117,7 @@ runs:
 
     - name: Get Kind network gateway
       if: ${{ !inputs.skip_maven }}
+      shell: bash
       run: |
         # Get the gateway IP from inside the Kind container's routing table
         # This is the most reliable way - it's what the container actually uses to reach the host
@@ -154,6 +162,7 @@ runs:
 
     - name: Show Hub status on failure
       if: failure()
+      shell: bash
       run: |
         echo "=== Pod Status ==="
         kubectl get pods -n konveyor-tackle
@@ -182,5 +191,6 @@ runs:
 
     - name: Cleanup Kind cluster
       if: always()
+      shell: bash
       run: kind delete cluster --name koncur-test || true
 
