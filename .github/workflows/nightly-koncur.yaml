@@ -139,7 +139,7 @@ jobs:
 # This will just do kantra testing on the images now.
 #
 #
-  run-koncur-action:
+  run-koncur-kantra-action:
     needs: 
     - build-level3-images
     - nightly-tag
@@ -166,4 +166,18 @@ jobs:
           os: ${{ matrix.os.os }}
           image_pattern: |
             *{kantra,provider}--${{ needs.nightly-tag.outputs.tag }}
+          ref: ${{ inputs.branch || 'main' }}
+  
+  run-koncur-tackle-hub-action:
+    needs: 
+    - build-level3-images
+    - nightly-tag
+    runs-on: ubuntu-latest 
+    steps:
+      - name: Run Koncur Testing
+        id: koncur-test
+        uses: shawn-hurley/ci/koncur-tackle-hub@main
+        with:
+          image_pattern: |
+            *{tackle-keyloak-init,tackle2-*,provider}--${{ needs.nightly-tag.outputs.tag }}
           ref: ${{ inputs.branch || 'main' }}

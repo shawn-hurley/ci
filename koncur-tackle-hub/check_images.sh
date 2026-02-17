@@ -2,7 +2,16 @@
 
 set -e
 
-REQUIRED_IMAGES=("quay.io/konveyor/kantra" "quay.io/konveyor/c-sharp-provider" "quay.io/konveyor/java-external-provider" "quay.io/konveyor/generic-external-provider")
+REQUIRED_IMAGES=(
+    "quay.io/konveyor/tackle2-hub"
+    "quay.io/konveyor/tackle2-addon-analyzer"
+    "quay.io/konveyor/tackle2-addon-discovery"
+    "quay.io/konveyor/tackle2-addon-platform"
+    "quay.io/konveyor/tackle-keycloak-init"
+    "quay.io/konveyor/c-sharp-provider"
+    "quay.io/konveyor/java-external-provider"
+    "quay.io/konveyor/generic-external-provider"
+)
 
 echo "Checking for required podman images..."
 echo "------------------------------------------------------------"
