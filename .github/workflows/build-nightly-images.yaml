@@ -32,6 +32,11 @@ jobs:
         with:
           repository: ${{ matrix.image.repo }}
           ref: ${{ inputs.branch }}
+      
+      - name: Setup golang
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25' 
 
       - name: Update go mod to the branch
         id: go_mod
@@ -62,7 +67,7 @@ jobs:
 
       - name: build image
         id: build-image
-        uses: shawn-hurley/ci/build-image@main
+        uses: konveyor/ci/build-image@main
         with:
           repo: ${{ matrix.image.repo }}
           ref: ${{ inputs.branch }}
