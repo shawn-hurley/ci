@@ -51,8 +51,14 @@ jobs:
       matrix_2: ${{ steps.prepare.outputs.matrix_2 }}
       matrix_3: ${{ steps.prepare.outputs.matrix_3 }}
     steps:
+      ## For now, just using main, but in the future we probably want this to
+      # use the same ref that the workflow is being called at. I don't know 
+      # how to get that information right now
       - name: Checkout ci repo
         uses: actions/checkout@v5
+        with:
+          repository: shawn-hurley/ci
+          ref: 'main'
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -65,7 +71,7 @@ jobs:
         run: |
           
           pip install -r scripts/requirements.txt
-          python scripts/parse_matrix_config.py .github/workflows/nightly-matrix-config.yaml -t ${{ inputs.tag || github.run_id }} -b ${{ inputs.ref || github.ref }} -r ${{ inputs.repo || github.repository }} out
+          python scripts/parse_matrix_config.py .github/workflows/nightly-matrix-config.yaml -t ${{ inputs.tag || github.run_id }} -b ${{ github.base_ref || github.ref_name }} -r ${{ inputs.repo || github.repository }} out
 
           # The output may be one ore more of these, we should handle the case where these are empty.
           matrix_0=$(cat out/level_0.json)
@@ -98,10 +104,10 @@ jobs:
     name: "Build level 0 images"
     if: ${{ fromJSON(needs.prepare-matrix.outputs.matrix_0).image[0] != null }}
     needs: prepare-matrix
-    uses: shawn-hurley/ci/.github/workflows/build-nightly-images.yaml@main
+    uses: ./.github/workflows/build-nightly-images.yaml
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_0 }}
-      branch: main
+      branch: ${{ inputs.ref || github.ref }}
       tag: ${{ inputs.tag || github.run_id }}
 
   build-level1-images:
@@ -110,10 +116,10 @@ jobs:
     needs: 
     - prepare-matrix
     - build-images
-    uses: shawn-hurley/ci/.github/workflows/build-nightly-images.yaml@main
+    uses: ./.github/workflows/build-nightly-images.yaml
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_1 }}
-      branch: main 
+      branch: ${{ inputs.ref || github.ref }}
       tag: ${{ inputs.tag || github.run_id }}
 
   build-level2-images:
@@ -122,10 +128,10 @@ jobs:
     needs: 
     - prepare-matrix
     - build-level1-images
-    uses: shawn-hurley/ci/.github/workflows/build-nightly-images.yaml@main
+    uses: ./.github/workflows/build-nightly-images.yaml
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_2 }}
-      branch: main 
+      branch: ${{ inputs.ref || github.ref }}
       tag: ${{ inputs.tag || github.run_id }}
   
   build-level3-images:
@@ -134,10 +140,10 @@ jobs:
     needs: 
     - prepare-matrix
     - build-level2-images
-    uses: shawn-hurley/ci/.github/workflows/build-nightly-images.yaml@main
+    uses: ./.github/workflows/build-nightly-images.yaml
     with:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_3 }}
-      branch: main
+      branch: ${{ inputs.ref || github.ref }}
       tag: ${{ inputs.tag || github.run_id }}
      
 #

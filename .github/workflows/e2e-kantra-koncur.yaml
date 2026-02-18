@@ -21,7 +21,7 @@ on:
 jobs:
 
   build-images:
-    uses: shawn-hurley/ci/.github/workflows/e2e-image-build.yaml@main
+    uses: ./.github/workflows/e2e-image-build.yaml
     with:
       repo: ${{ inputs.repo || github.repository }}
       ref: ${{ inputs.ref || github.ref }}
@@ -53,5 +53,5 @@ jobs:
           os: ${{ matrix.os.os }}
           image_pattern: |
             *{kantra,provider}--${{ github.run_id }}
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ github.base_ref || inputs.ref || github.ref_name}}
 

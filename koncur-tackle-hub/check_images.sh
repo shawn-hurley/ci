@@ -7,7 +7,6 @@ REQUIRED_IMAGES=(
     "quay.io/konveyor/tackle2-addon-analyzer"
     "quay.io/konveyor/tackle2-addon-discovery"
     "quay.io/konveyor/tackle2-addon-platform"
-    "quay.io/konveyor/tackle-keycloak-init"
     "quay.io/konveyor/c-sharp-provider"
     "quay.io/konveyor/java-external-provider"
     "quay.io/konveyor/generic-external-provider"
@@ -16,7 +15,6 @@ hub_regex=".*tackle2-hub.*"
 addon_regex=".*tackle2-addon-analyzer.*"
 addon_discovery=".*tackle2-addon-discovery.*"
 addon_platform=".*tackle2-addon-platform.*"
-keycloak_init=".*tackle-keycloak-init.*"
 kantra_image_regex=".*kantra.*"
 java_provider_image_regex=".*java(-external)?-provider.*"
 c_sharp_provider_image_regex=".*c-sharp-provider.*"
@@ -26,7 +24,7 @@ echo "Checking for required podman images..."
 echo "------------------------------------------------------------"
 
 # Get list of all podman images
-IMAGES=$(podman images --format "{{.Repository}}:{{.Tag}}" 2>/dev/null)
+IMAGES=$(podman exec koncur-test-control-plane crictl images -o json | jq -r '.[] | map(.repoTags[])' 2>/dev/null)
 
 if [ -z "$IMAGES" ]; then
     echo "No images found in podman."
@@ -126,7 +124,7 @@ if [ ${#MISSING[@]} -gt 0 ]; then
     echo "Loading downloaded images into podman..."
     for image in $(find "$TEMP_DIR" -type f -name "*.tar"); do
         echo "Loading: ${image}"
-        LOADED_IMAGE=$(podman load -i "${image}" | awk '{print $3}')
+        LOADED_IMAGE=$(kind load -i "${image}" | awk '{print $3}')
         echo "Loaded image: $LOADED_IMAGE"
 
         # Re-tag if we have a tag from found images
@@ -154,8 +152,8 @@ if [ ${#MISSING[@]} -gt 0 ]; then
             echo "GENERIC_PROVIDER_IMG=$NEW_TAG" >> $GITHUB_ENV
         fi
         if [[ "$image" =~ $addon_regex ]]; then
-            echo "Addon-Analyzer Image Found Set Env Var: ADDON_ANALYZER=$NEW_TAG"
-            echo "ADDON_ANALYZER=$NEW_TAG" >> $GITHUB_ENV
+            echo "Addon-Analyzer Image Found Set Env Var: ANALYZER_ADDON=$NEW_TAG"
+            echo "ANALYZER_ADDON=$NEW_TAG" >> $GITHUB_ENV
         fi
         if [[ "$image" =~ $addon_discovery ]]; then
             echo "Discovery Addon Image Found Set Env Var: DISCOVERY_ADDON=$NEW_TAG"
@@ -164,10 +162,6 @@ if [ ${#MISSING[@]} -gt 0 ]; then
         if [[ "$image" =~ $addon_platform ]]; then
             echo "Platform Addon Image Found Set Env Var: PLATFORM_ADDON=$NEW_TAG"
             echo "PLATFORM_ADDON=$NEW_TAG" >> $GITHUB_ENV
-        fi
-        if [[ "$image" =~ $keycloak_init ]]; then
-            echo "Keycloak init Image Found Set Env Var: KEYCLOAK_INIT=$NEW_TAG"
-            echo "KEYCLOAK_INIT=$NEW_TAG" >> $GITHUB_ENV
         fi
         if [[ "$image" =~ $hub_regex ]]; then
             echo "Hub Image Image Found Set Env Var: HUB=$NEW_TAG"

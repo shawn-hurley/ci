@@ -22,7 +22,7 @@ runs:
     - name: Checkout repo
       uses: actions/checkout@v6
       with:
-        ref: ${{ inputs.ref || 'main' }}
+        ref: allow-image-override
         repository: konveyor/koncur
 
     - name: Setup Go
@@ -50,8 +50,45 @@ runs:
       shell: bash
       run: make kind-create
 
+
+      
+
+    - name: Download Images from artifacts
+      id: download-artifacts
+      continue-on-error: true
+      if: ${{ inputs.image_pattern }}
+      uses: actions/download-artifact@v4
+      with:
+        pattern: ${{ inputs.image_pattern }}
+        path: ${{ runner.temp }}/images
+        merge-multiple: true
+
+    - name: Load images into kind cluster 
+      if: ${{ inputs.image_pattern }}
+      shell: bash
+      run: |
+        ${GITHUB_ACTION_PATH}/load_img.sh ${RUNNER_TEMP}/images
+        rm -rf ${RUNNER_TEMP}/images
+    
+    - name: Check and download missing images
+      if: ${{ steps.download-artifact.outcome == 'failure' || steps.download-artifact.outcome == 'success' }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+      shell: bash
+      run: |
+        ${GITHUB_ACTION_PATH}/check_images.sh
+
     - name: Install Tackle Hub
       shell: bash
+      env:
+        RUNNER_IMG: ${{ env.RUNNER_IMG }}
+        JAVA_PROVIDER_IMG: ${{ env.JAVA_PROVIDER_IMG }}
+        CSHARP_PROVIDER_IMG: ${{ env.CSHARP_PROVIDER_IMG }}
+        GENERIC_PROVIDER_IMG: ${{ env.GENERIC_PROVIDER_IMG }}
+        ANALYZER_ADDON: ${{ env.ANALYZER_ADDON }}
+        DISCOVERY_ADDON: ${{ env.DISCOVERY_ADDON }}
+        PLATFORM_ADDON: ${{ env.PLATFORM_ADDON }}
+        HUB: ${{ env.HUB }}
       run: make hub-install
 
     - name: Wait for Hub readiness
@@ -79,28 +116,6 @@ runs:
         done
         echo "Hub API never became ready"
         exit 1
-      
-    - name: Download Images from artifacts
-      if: ${{ inputs.image_pattern }}
-      uses: actions/download-artifact@v4
-      with:
-        pattern: ${{ inputs.image_pattern }}
-        path: ${{ runner.temp }}/images
-        merge-multiple: true
-
-    - name: Load images into podman
-      if: ${{ inputs.image_pattern }}
-      shell: bash
-      run: |
-        ${GITHUB_ACTION_PATH}/load_img.sh ${RUNNER_TEMP}/images
-        rm -rf ${RUNNER_TEMP}/images
-    
-    - name: Check and download missing images
-      shell: bash
-      env:
-        GH_TOKEN: $(( github.token }}
-      run: |
-        ${GITHUB_ACTION_PATH}/check_images.sh
 
     - name: Build Koncur
       shell: bash
@@ -178,7 +193,7 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: koncur-hub-failures
-        path: .koncur/output
+        path: .koncur
         retention-days: 5
 
     - name: Upload result yaml

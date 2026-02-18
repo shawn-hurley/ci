@@ -97,6 +97,7 @@ runs:
       run: |
         BASE_IMG="${{ inputs.base_image }}"
         ARTIFACT_PREFIX="${BASE_IMG%--*}"
+        echo "Attempting to get base image from nightly: $BASE_IMG"
         WORKFLOW_RUN=$(gh run list -R=konveyor/ci --workflow=nightly-koncur.yaml --status=success --limit=1 --json databaseId --jq '.[0].databaseId')
         gh run download -R konveyor/ci "$WORKFLOW_RUN" --pattern "${ARTIFACT_PREFIX}--*" --dir /tmp/base_images 
         echo "download-path=/tmp/base_images" >> $GITHUB_OUTPUT
