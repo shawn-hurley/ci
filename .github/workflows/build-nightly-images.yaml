@@ -86,7 +86,7 @@ jobs:
       
       - name: build image
         id: build-image
-        uses: konveyor/ci/build-image@main
+        uses: shawn-hurley/ci/build-image@main
         with:
           repo: ${{ matrix.image.repo }}
           ref: ${{ inputs.branch }}
@@ -97,6 +97,7 @@ jobs:
           build_args: ${{ matrix.image.args }}
           checked_out: true
           base_image: ${{ matrix.image.base_image }}
+          base_image_arg: ${{ matrix.image.base_image_arg }}
 
 
   build-manifest-lists:

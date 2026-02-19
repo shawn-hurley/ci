@@ -94,13 +94,23 @@ if [ ${#MISSING[@]} -gt 0 ]; then
         # Download only the manifest list (without _amd64 or _arm64 suffix)
         # Pattern matches: quay.io_konveyor_kantra--main_2026.02.18
         # But NOT: quay.io_konveyor_kantra--main_2026.02.18_amd64
-        echo "Downloading manifest list artifact matching: ${ARTIFACT_PREFIX}--*"
+        PATTERN="${ARTIFACT_PREFIX}--*_20[0-9][0-9].[0-9][0-9].[0-9][0-9]"
+        echo "Downloading manifest list artifact matching: ${PATTERN}"
         
         # Use a more specific pattern that excludes architecture suffixes
         # We want artifacts that end with a date pattern, not _amd64/_arm64
-        if gh run download -R=konveyor/ci "$WORKFLOW_RUN" --pattern "${ARTIFACT_PREFIX}--*_20[0-9][0-9].[0-9][0-9].[0-9][0-9]" --dir "$TEMP_DIR" 2>&1 | grep -v "no artifact matches"; then
+        OUTPUT=$(gh run download -R=konveyor/ci "$WORKFLOW_RUN" --pattern "$PATTERN" --dir "$TEMP_DIR" 2>&1)
+        EXIT_CODE=$?
+        
+        if [ $EXIT_CODE -eq 0 ]; then
             DOWNLOAD_SUCCESS=1
+            echo "Successfully downloaded artifact for $img"
         else
+            # Only show error if it's not the expected "no artifact matches" message
+            if ! echo "$OUTPUT" | grep -q "no artifact matches"; then
+                echo "Error downloading artifact for $img:"
+                echo "$OUTPUT"
+            fi
             echo "Warning: Could not download manifest list artifact for $img"
         fi
     done

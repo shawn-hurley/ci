@@ -32,7 +32,7 @@ jobs:
     needs: build-images
     steps:
       - name: Run Koncur Testing
-        uses: konveyor/ci/koncur-tackle-hub@main
+        uses: shawn-hurley/ci/koncur-tackle-hub@main
         with:
           image_pattern: |
             *{tackle-keycloak-init,tackle2-*,provider}--${{ github.run_id }}

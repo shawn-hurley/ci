@@ -48,7 +48,7 @@ jobs:
     steps:
       - name: Run Koncur Testing
         id: koncur-test
-        uses: konveyor/ci/koncur-kantra@main
+        uses: shawn-hurley/ci/koncur-kantra@main
         with:
           os: ${{ matrix.os.os }}
           image_pattern: |
