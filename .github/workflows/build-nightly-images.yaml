@@ -15,6 +15,13 @@ on:
         description: 'the tag to be used for the built image'
         required: false
         type: string
+      tested_repo:
+        description: |
+          The repository being tested (e.g., "konveyor/analyzer-lsp").
+          Used to determine which repo should use the PR/branch ref vs base ref.
+          If not provided, all repos use the branch ref.
+        required: false
+        type: string
     outputs:
       dependent-jobs:
         description: 'Dependent jobs to build next'
@@ -35,13 +42,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: ${{ matrix.image.repo }}
-          ref: ${{ inputs.branch }}
       
-      - name: Setup golang
-        uses: actions/setup-go@v6
-        with:
-          go-version: '1.25' 
-
       - name: Setup golang
         uses: actions/setup-go@v6
         with:

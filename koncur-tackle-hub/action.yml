@@ -71,7 +71,7 @@ runs:
         rm -rf ${RUNNER_TEMP}/images
     
     - name: Check and download missing images
-      if: ${{ steps.download-artifact.outcome == 'failure' || steps.download-artifact.outcome == 'success' }}
+      if: ${{ steps.download-artifacts.outcome == 'failure' || steps.download-artifacts.outcome == 'success' }}
       env:
         GH_TOKEN: ${{ github.token }}
       shell: bash

@@ -28,29 +28,12 @@ jobs:
     secrets: inherit
 
   run-koncur-action:
-    needs:
-    - build-images
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - os: "linux"
-            runner: "ubuntu-24.04-arm"
-          - os: "macos"
-            runner: "macos-26-large"
-          - os: "windows"
-            runner: "windows-latest"
-        exclude:
-          - os: 
-              os: "macos"
-              runner: "macos-26-large"
-    runs-on: ${{ matrix.os.runner }}
+    runs-on: ubuntu-latest
+    needs: build-images
     steps:
       - name: Run Koncur Testing
-        id: koncur-test
-        uses: shawn-hurley/ci/koncur-tackle-hub@main
+        uses: konveyor/ci/koncur-tackle-hub@main
         with:
-          os: ${{ matrix.os.os }}
           image_pattern: |
-            *{kantra,provider}--${{ github.run_id }}
+            *{tackle-keycloak-init,tackle2-*,provider}--${{ github.run_id }}
           ref: ${{ github.base_ref || inputs.ref || github.ref_name}}

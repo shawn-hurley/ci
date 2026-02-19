@@ -7,7 +7,6 @@ hub_regex=".*tackle2-hub.*"
 addon_regex=".*tackle2-addon-analyzer.*"
 addon_discovery=".*tackle2-addon-discovery.*"
 addon_platform=".*tackle2-addon-platform.*"
-keycloak_init=".*tackle-keycloak-init.*"
 java_provider_image_regex=".*java(-external)?-provider.*"
 c_sharp_provider_image_regex=".*c-sharp-provider.*"
 generic_provider_image_regex=".*generic(-external)?-provider.*"
@@ -16,10 +15,28 @@ for image in $(find "$FILE_PATH" -type f -name "*.tar"); do
     echo "Attempting to load image: ${image}"
     
     # Extract image name from tar file metadata before loading
-    result=$(tar -xOf "${image}" manifest.json 2>/dev/null | jq -r '.[0].RepoTags[0] // empty' 2>/dev/null)
+    # Try multiple methods to handle different tar formats
+    result=""
+    
+    # Method 1: Try with jq (most reliable if available)
+    if command -v jq &> /dev/null; then
+        result=$(tar -xOf "${image}" manifest.json 2>/dev/null | jq -r '.[0].RepoTags[0] // empty' 2>/dev/null)
+    fi
+    
+    # Method 2: Try with grep/sed if jq failed or not available
+    if [ -z "$result" ]; then
+        result=$(tar -xOf "${image}" manifest.json 2>/dev/null | grep -o '"RepoTags":\s*\[\s*"[^"]*"' | grep -o '"[^"]*"' | tail -1 | tr -d '"' 2>/dev/null)
+    fi
+    
+    # Method 3: Try index.json for OCI format images
+    if [ -z "$result" ]; then
+        result=$(tar -xOf "${image}" index.json 2>/dev/null | grep -o '"org.opencontainers.image.ref.name":"[^"]*"' | cut -d'"' -f4 2>/dev/null)
+    fi
     
     if [ -z "$result" ]; then
         echo "Warning: Could not extract image name from ${image}, skipping..."
+        echo "Debug: Listing tar contents:"
+        tar -tf "${image}" 2>/dev/null | head -10
         continue
     fi
     

@@ -57,7 +57,7 @@ jobs:
       - name: Checkout ci repo
         uses: actions/checkout@v5
         with:
-          repository: shawn-hurley/ci
+          repository: konveyor/ci
           ref: 'main'
 
       - name: Setup Python
@@ -109,6 +109,7 @@ jobs:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_0 }}
       branch: ${{ inputs.ref || github.ref }}
       tag: ${{ inputs.tag || github.run_id }}
+      tested_repo: ${{ inputs.repo || github.repository }}
 
   build-level1-images:
     name: "Build level 1 images"
@@ -121,6 +122,7 @@ jobs:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_1 }}
       branch: ${{ inputs.ref || github.ref }}
       tag: ${{ inputs.tag || github.run_id }}
+      tested_repo: ${{ inputs.repo || github.repository }}
 
   build-level2-images:
     name: "Build level 2 images"
@@ -133,6 +135,7 @@ jobs:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_2 }}
       branch: ${{ inputs.ref || github.ref }}
       tag: ${{ inputs.tag || github.run_id }}
+      tested_repo: ${{ inputs.repo || github.repository }}
   
   build-level3-images:
     name: "Build level 3 images"
@@ -145,30 +148,5 @@ jobs:
       matrix-config: ${{ needs.prepare-matrix.outputs.matrix_3 }}
       branch: ${{ inputs.ref || github.ref }}
       tag: ${{ inputs.tag || github.run_id }}
+      tested_repo: ${{ inputs.repo || github.repository }}
      
-#
-#
-  run-koncur-action:
-    needs:
-    - build-level3-images
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - os: "linux"
-            runner: "ubuntu-24.04-arm"
-          - os: "macos"
-            runner: "macos-26-large"
-          - os: "windows"
-            runner: "windows-latest"
-    runs-on: ${{ matrix.os.runner }}
-    steps:
-      - name: Run Koncur Testing
-        id: koncur-test
-        uses: shawn-hurley/ci/koncur-kantra@main
-        with:
-          os: ${{ matrix.os.os }}
-          image_pattern: |
-            *{kantra,provider}--${{ inputs.tag || github.run_id }}
-          ref: 'main'
-

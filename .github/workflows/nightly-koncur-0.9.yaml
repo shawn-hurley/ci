@@ -8,7 +8,7 @@ on:
 
 jobs:
   run-nightly:
-    uses: shawn-hurley/ci/.github/workflows/nightly-koncur.yaml@main
+    uses: konveyor/ci/.github/workflows/nightly-koncur.yaml@main
     with:
       branch: release-0.9
     secrets: inherit

@@ -69,8 +69,8 @@ if [ ${#MISSING[@]} -gt 0 ]; then
 
     echo "Attempting to download missing images from last successful nightly run..."
 
-    # Find the last successful run of the nightly workflow
-    WORKFLOW_RUN=$(gh run list -R=konveyor/ci --workflow=nightly-koncur.yaml --status=success --limit=1 --json databaseId --jq '.[0].databaseId')
+    # Find the last successful run of the nightly workflow on main branch
+    WORKFLOW_RUN=$(gh run list -R=konveyor/ci --workflow=nightly-koncur.yaml --branch=main --status=success --limit=1 --json databaseId --jq '.[0].databaseId')
 
     if [ -z "$WORKFLOW_RUN" ]; then
         echo "Error: Could not find a successful nightly workflow run"
@@ -85,17 +85,23 @@ if [ ${#MISSING[@]} -gt 0 ]; then
 
     DOWNLOAD_SUCCESS=0
 
-    # Download artifacts for missing images
+    # Download artifacts for missing images (manifest lists only, not arch-specific)
     for img in "${MISSING[@]}"; do
         # Convert image name to artifact naming pattern
         # quay.io/konveyor/kantra -> quay.io_konveyor_kantra
         ARTIFACT_PREFIX="${img//\//_}"
 
-        echo "Downloading artifacts matching: ${ARTIFACT_PREFIX}--*"
-        if gh run download -R=konveyor/ci "$WORKFLOW_RUN" --pattern "${ARTIFACT_PREFIX}--*.[0-9][0-9]" --dir "$TEMP_DIR" 3>/dev/null; then
+        # Download only the manifest list (without _amd64 or _arm64 suffix)
+        # Pattern matches: quay.io_konveyor_kantra--main_2026.02.18
+        # But NOT: quay.io_konveyor_kantra--main_2026.02.18_amd64
+        echo "Downloading manifest list artifact matching: ${ARTIFACT_PREFIX}--*"
+        
+        # Use a more specific pattern that excludes architecture suffixes
+        # We want artifacts that end with a date pattern, not _amd64/_arm64
+        if gh run download -R=konveyor/ci "$WORKFLOW_RUN" --pattern "${ARTIFACT_PREFIX}--*_20[0-9][0-9].[0-9][0-9].[0-9][0-9]" --dir "$TEMP_DIR" 2>&1 | grep -v "no artifact matches"; then
             DOWNLOAD_SUCCESS=1
         else
-            echo "Warning: Could not download artifact for $img"
+            echo "Warning: Could not download manifest list artifact for $img"
         fi
     done
 
