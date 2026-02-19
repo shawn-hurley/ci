@@ -89,6 +89,7 @@ jobs:
   
   build-images:
     name: "Build level 0 images"
+    if: ${{ fromJSON(needs.prepare-matrix.outputs.matrix_0).image[0] != null }}
     needs: prepare-matrix
     uses: konveyor/ci/.github/workflows/build-nightly-images.yaml@main
     with:
@@ -97,6 +98,7 @@ jobs:
 
   build-level1-images:
     name: "Build level 1 images"
+    if: ${{ !failure() && fromJSON(needs.prepare-matrix.outputs.matrix_1).image[0] != null }}
     needs: 
     - prepare-matrix
     - build-images
@@ -107,6 +109,7 @@ jobs:
 
   build-level2-images:
     name: "Build level 2 images"
+    if: ${{ !failure() && fromJSON(needs.prepare-matrix.outputs.matrix_2).image[0] != null }}
     needs: 
     - prepare-matrix
     - build-level1-images
@@ -117,6 +120,7 @@ jobs:
   
   build-level3-images:
     name: "Build level 3 images"
+    if: ${{ !failure() && fromJSON(needs.prepare-matrix.outputs.matrix_3).image[0] != null }}
     needs: 
     - prepare-matrix
     - build-level2-images
@@ -140,7 +144,11 @@ jobs:
 #
 #
   run-koncur-kantra-action:
+    if: ${{ !cancelled() && !failure() }}
     needs: 
+    - build-images
+    - build-level1-images
+    - build-level2-images
     - build-level3-images
     - nightly-tag
     strategy:
@@ -169,7 +177,11 @@ jobs:
           ref: ${{ inputs.branch || 'main' }}
   
   run-koncur-tackle-hub-action:
+    if: ${{ !cancelled() && !failure() }}
     needs: 
+    - build-images
+    - build-level1-images
+    - build-level2-images
     - build-level3-images
     - nightly-tag
     runs-on: ubuntu-latest

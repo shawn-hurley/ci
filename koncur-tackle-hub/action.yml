@@ -22,7 +22,7 @@ runs:
     - name: Checkout repo
       uses: actions/checkout@v6
       with:
-        ref: allow-image-override
+        ref: ${{ inputs.ref }}
         repository: konveyor/koncur
 
     - name: Setup Go

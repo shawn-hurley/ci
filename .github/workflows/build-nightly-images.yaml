@@ -97,6 +97,7 @@ jobs:
           build_args: ${{ matrix.image.args }}
           checked_out: true
           base_image: ${{ matrix.image.base_image }}
+          base_image_arg: ${{ matrix.image.base_image_arg }}
 
 
   build-manifest-lists:
