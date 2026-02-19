@@ -20,14 +20,14 @@ java_provider_image_regex=".*java(-external)?-provider.*"
 c_sharp_provider_image_regex=".*c-sharp-provider.*"
 generic_provider_image_regex=".*generic(-external)?-provider.*"
 
-echo "Checking for required podman images..."
+echo "Checking for required images in Kind cluster..."
 echo "------------------------------------------------------------"
 
-# Get list of all podman images
-IMAGES=$(podman exec koncur-test-control-plane crictl images -o json | jq -r '.[] | map(.repoTags[])' 2>/dev/null)
+# Get list of all images in Kind cluster
+IMAGES=$(docker exec koncur-test-control-plane crictl images -o json | jq -r '.images[] | .repoTags[]' 2>/dev/null)
 
 if [ -z "$IMAGES" ]; then
-    echo "No images found in podman."
+    echo "No images found in Kind cluster."
     echo ""
     echo "Missing images:"
     for img in "${REQUIRED_IMAGES[@]}"; do
@@ -119,22 +119,30 @@ if [ ${#MISSING[@]} -gt 0 ]; then
         exit 1
     fi
 
-    # Load downloaded images into podman and optionally re-tag
+    # Load downloaded images into Kind cluster and optionally re-tag
     echo ""
-    echo "Loading downloaded images into podman..."
+    echo "Loading downloaded images into Kind cluster..."
+    CLUSTER_NAME=${CLUSTER_NAME:-koncur-test}
+    
     for image in $(find "$TEMP_DIR" -type f -name "*.tar"); do
         echo "Loading: ${image}"
-        LOADED_IMAGE=$(kind load -i "${image}" | awk '{print $3}')
-        echo "Loaded image: $LOADED_IMAGE"
-
-        # Re-tag if we have a tag from found images
-        if [ -n "$FOUND_TAG" ] && [ -n "$LOADED_IMAGE" ]; then
-            # Extract the repository name (without the tag)
-            IMAGE_REPO=$(echo "$LOADED_IMAGE" | cut -d':' -f1)
-            NEW_TAG="${IMAGE_REPO}:${FOUND_TAG}"
-            echo "Re-tagging to: $NEW_TAG"
-            podman tag "$LOADED_IMAGE" "$NEW_TAG"
+        
+        # Extract image name from tar file metadata
+        LOADED_IMAGE=$(tar -xOf "${image}" manifest.json 2>/dev/null | jq -r '.[0].RepoTags[0] // empty' 2>/dev/null)
+        
+        if [ -z "$LOADED_IMAGE" ]; then
+            echo "Warning: Could not extract image name from ${image}, skipping..."
+            continue
         fi
+        
+        echo "Image name: $LOADED_IMAGE"
+        
+        # Load image into Kind cluster
+        kind load image-archive "${image}" --name "${CLUSTER_NAME}"
+        
+        # Use the extracted image name as-is (no re-tagging needed for Kind)
+        NEW_TAG="$LOADED_IMAGE"
+        echo "Loaded image: $NEW_TAG"
         if [[ "$image" =~ $kantra_image_regex ]]; then
             echo "Kantra Image Found Set Env Var: RUNNER_IMG=$NEW_TAG"
             echo "RUNNER_IMG=$NEW_TAG" >> $GITHUB_ENV
