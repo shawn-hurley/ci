@@ -11,7 +11,7 @@ import json
 import yaml
 import argparse
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict
 
 
@@ -36,10 +36,49 @@ def replace_branch_placeholder(obj: Any, branch_name: str) -> Any:
         return obj
 
 
+def parse_overrides(overrides_json: str) -> Dict[str, str]:
+    """
+    Parse the overrides JSON list into a dict mapping repo to PR ref.
+
+    Each entry is in the format "<org>/<repo>#<pr-number>".
+    Returns a dict like {"konveyor/kantra": "refs/pull/123/merge"}.
+
+    Args:
+        overrides_json: JSON string like '["konveyor/kantra#123", ...]'
+
+    Returns:
+        Dict mapping repo name to canonical GitHub PR ref
+    """
+    overrides = {}
+    try:
+        entries = json.loads(overrides_json)
+    except (json.JSONDecodeError, TypeError):
+        return overrides
+
+    for entry in entries:
+        if "#" not in entry:
+            print(
+                f"Warning: Skipping invalid override (missing #): {entry}",
+                file=sys.stderr,
+            )
+            continue
+        repo, pr_number = entry.rsplit("#", 1)
+        if not pr_number.isdigit():
+            print(
+                f"Warning: Skipping invalid override (non-numeric PR): {entry}",
+                file=sys.stderr,
+            )
+            continue
+        overrides[repo] = f"refs/pull/{pr_number}/merge"
+
+    return overrides
+
+
 def organize_by_levels(
     config_items: List[Dict[str, Any]],
     base_image_tag: str = None,
     repo_filter: str = None,
+    ref_overrides: Dict[str, str] = None,
 ) -> List[List[Dict[str, Any]]]:
     """
     Organize configuration items into levels based on dependency depth.
@@ -48,6 +87,7 @@ def organize_by_levels(
         config_items: List of configuration dictionaries from the YAML
         base_image_tag: Optional tag to append to base_image (e.g., "nightly", "v1.0")
         repo_filter: Optional repository name to filter jobs at any level (e.g., "konveyor/kantra")
+        ref_overrides: Optional dict mapping repo names to refs (e.g., {"konveyor/kantra": "refs/pull/123/merge"})
 
     Returns:
         List of lists, where each inner list contains jobs at that dependency level
@@ -55,7 +95,10 @@ def organize_by_levels(
     levels = defaultdict(list)
 
     def find_and_process_matching_jobs(
-        job: Dict[str, Any], level: int, parent_image: Optional[str] = None, include: bool = False
+        job: Dict[str, Any],
+        level: int,
+        parent_image: Optional[str] = None,
+        include: bool = False,
     ) -> bool:
         """
         Recursively search for jobs matching the repo filter and process them.
@@ -94,6 +137,10 @@ def organize_by_levels(
                 else:
                     job_copy["base_image"] = parent_image
 
+            # Apply ref override if this repo has one
+            if ref_overrides and job_copy.get("repo") in ref_overrides:
+                job_copy["ref"] = ref_overrides[job_copy["repo"]]
+
             levels[level].append(job_copy)
             return True
 
@@ -128,6 +175,12 @@ def main():
         "--repo",
         help='Filter to only include jobs from this repository (e.g., "konveyor/kantra"). Dependent jobs will still be included.',
     )
+    parser.add_argument(
+        "-o",
+        "--overrides",
+        help="JSON list of repo#PR overrides (e.g., '[\"konveyor/kantra#123\"]'). "
+        "Sets the ref for matching repos to refs/pull/<pr>/merge.",
+    )
 
     args = parser.parse_args()
 
@@ -144,8 +197,11 @@ def main():
         if args.branch:
             data = replace_branch_placeholder(data, args.branch)
 
+        # Parse ref overrides from CI comments
+        ref_overrides = parse_overrides(args.overrides) if args.overrides else None
+
         # Organize jobs by dependency levels
-        levels = organize_by_levels(data["config"], args.tag, args.repo)
+        levels = organize_by_levels(data["config"], args.tag, args.repo, ref_overrides)
 
         # Print the results summary
         print(f"Found {len(levels)} dependency levels:\n")
