@@ -57,7 +57,7 @@ jobs:
       - name: Checkout ci repo
         uses: actions/checkout@v5
         with:
-          repository: konveyor/ci
+          repository: shawn-hurley/ci
           ref: 'main'
 
       - name: Setup Python
@@ -83,6 +83,8 @@ jobs:
         shell: bash
         env:
           OVERRIDES: ${{ steps.get_ci_comments.outputs.overrides }}
+          TESTED_REPO_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
 
           pip install -r scripts/requirements.txt
@@ -91,6 +93,9 @@ jobs:
           if [ -n "$OVERRIDES" ] && [ "$OVERRIDES" != "[]" ]; then
             echo "Applying CI comment overrides: $OVERRIDES"
             OVERRIDE_ARGS="-o $OVERRIDES"
+            if [ -n "$TESTED_REPO_SHA" ]; then
+              OVERRIDE_ARGS="$OVERRIDE_ARGS -s $TESTED_REPO_SHA"
+            fi
           fi
 
           python scripts/parse_matrix_config.py .github/workflows/nightly-matrix-config.yaml -t ${{ inputs.tag || github.run_id }} -b ${{ github.base_ref || github.ref_name }} -r ${{ inputs.repo || github.repository }} $OVERRIDE_ARGS out

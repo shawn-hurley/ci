@@ -10,6 +10,7 @@ import sys
 import json
 import yaml
 import argparse
+import subprocess
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict
@@ -72,6 +73,119 @@ def parse_overrides(overrides_json: str) -> Dict[str, str]:
         overrides[repo] = f"refs/pull/{pr_number}/merge"
 
     return overrides
+
+
+def _module_matches_repo(module_path: str, repo: str) -> bool:
+    """Check if a Go module path corresponds to a GitHub repo.
+
+    Args:
+        module_path: Go module path (e.g., "github.com/konveyor/analyzer-lsp/external-providers/...")
+        repo: GitHub repo (e.g., "konveyor/analyzer-lsp")
+
+    Returns:
+        True if the module belongs to the repo
+    """
+    prefix = f"github.com/{repo}"
+    return module_path == prefix or module_path.startswith(f"{prefix}/")
+
+
+def resolve_pr_head_sha(repo: str, pr_number: str) -> Optional[str]:
+    """Resolve a PR's head commit SHA using the GitHub CLI.
+
+    Args:
+        repo: GitHub repo (e.g., "konveyor/analyzer-lsp")
+        pr_number: PR number
+
+    Returns:
+        The head commit SHA, or None if resolution fails
+    """
+    try:
+        result = subprocess.run(
+            ["gh", "api", f"repos/{repo}/pulls/{pr_number}", "--jq", ".head.sha"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+        print(
+            f"Warning: Failed to resolve SHA for {repo}#{pr_number}: {result.stderr.strip()}",
+            file=sys.stderr,
+        )
+    except FileNotFoundError:
+        print("Warning: gh CLI not found, cannot resolve PR SHAs", file=sys.stderr)
+    except subprocess.TimeoutExpired:
+        print(
+            f"Warning: Timed out resolving SHA for {repo}#{pr_number}", file=sys.stderr
+        )
+    return None
+
+
+def apply_go_mod_overrides(
+    levels: List[List[Dict[str, Any]]],
+    tested_repo: str,
+    tested_repo_sha: str,
+    ref_overrides: Dict[str, str],
+) -> None:
+    """Rewrite go_mod_update entries to use commit SHAs for override and tested repos.
+
+    For overridden images: if go_mod_update references the tested repo, replace
+    the branch with the tested repo's SHA.
+
+    For tested repo images: if go_mod_update references an overridden repo, resolve
+    that PR's head SHA and replace the branch with it.
+
+    Args:
+        levels: The organized job levels (modified in place)
+        tested_repo: The repo under test (from -r flag)
+        tested_repo_sha: The head SHA of the tested repo's PR
+        ref_overrides: Dict mapping repo -> refs/pull/N/merge
+    """
+    # Build a cache for lazily resolved override SHAs
+    override_sha_cache: Dict[str, Optional[str]] = {}
+
+    for level in levels:
+        for job in level:
+            if "go_mod_update" not in job:
+                continue
+
+            updated = []
+            for entry in job["go_mod_update"]:
+                if "@" not in entry:
+                    updated.append(entry)
+                    continue
+
+                module_path, _branch = entry.rsplit("@", 1)
+
+                # Case 1: Overridden image references the tested repo's module
+                if job.get("ref") and _module_matches_repo(module_path, tested_repo):
+                    updated.append(f"{module_path}@{tested_repo_sha}")
+                    print(f"  go_mod_update: {entry} -> @{tested_repo_sha}")
+                    continue
+
+                # Case 2: Tested repo's image references an overridden repo's module
+                if job.get("repo") == tested_repo:
+                    matched = False
+                    for override_repo in ref_overrides:
+                        if _module_matches_repo(module_path, override_repo):
+                            if override_repo not in override_sha_cache:
+                                pr_number = ref_overrides[override_repo].split("/")[2]
+                                override_sha_cache[override_repo] = resolve_pr_head_sha(
+                                    override_repo, pr_number
+                                )
+                            sha = override_sha_cache[override_repo]
+                            if sha:
+                                updated.append(f"{module_path}@{sha}")
+                                print(f"  go_mod_update: {entry} -> @{sha}")
+                                matched = True
+                            break
+                    if not matched:
+                        updated.append(entry)
+                    continue
+
+                updated.append(entry)
+
+            job["go_mod_update"] = updated
 
 
 def organize_by_levels(
@@ -181,6 +295,12 @@ def main():
         help="JSON list of repo#PR overrides (e.g., '[\"konveyor/kantra#123\"]'). "
         "Sets the ref for matching repos to refs/pull/<pr>/merge.",
     )
+    parser.add_argument(
+        "-s",
+        "--tested-repo-sha",
+        help="Head commit SHA of the tested repo's PR. Used to rewrite go_mod_update "
+        "entries on overridden images that depend on the tested repo.",
+    )
 
     args = parser.parse_args()
 
@@ -202,6 +322,14 @@ def main():
 
         # Organize jobs by dependency levels
         levels = organize_by_levels(data["config"], args.tag, args.repo, ref_overrides)
+
+        # Rewrite go_mod_update entries when overrides are present
+        if ref_overrides and args.repo and args.tested_repo_sha:
+            print("Applying go_mod_update overrides:")
+            apply_go_mod_overrides(
+                levels, args.repo, args.tested_repo_sha, ref_overrides
+            )
+            print()
 
         # Print the results summary
         print(f"Found {len(levels)} dependency levels:\n")
