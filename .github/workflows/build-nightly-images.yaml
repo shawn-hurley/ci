@@ -54,10 +54,29 @@ jobs:
         with:
           go-version: '1.25' 
       
+      - name: Apply go mod replaces
+        id: go_mod_replaces
+        shell: bash
+        if: matrix.image.go_mod_replaces != '' && matrix.image.go_mod_replaces[0] != null
+        run: |
+          GO_MOD_DIR="${{ matrix.image.go_mod_directory || '.' }}"
+          cd "$GO_MOD_DIR"
+          echo "Applying go mod replaces in directory: $(pwd)"
+
+          for replace in ${{ join(matrix.image.go_mod_replaces, ' ') }}
+          do
+            echo "go mod edit -replace $replace"
+            go mod edit -replace "$replace"
+          done
+
       - name: Update go mod to the branch
         id: go_mod
         shell: bash
         if: matrix.image.go_mod_update != '' && matrix.image.go_mod_update[0] != null
+        env:
+          GONOSUMCHECK: "*"
+          GOFLAGS: "-mod=mod"
+          GOPROXY: direct
         run: |
           # Change to the specified directory if provided, otherwise use current directory
           GO_MOD_DIR="${{ matrix.image.go_mod_directory || '.' }}"

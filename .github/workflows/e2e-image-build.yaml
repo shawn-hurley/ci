@@ -83,7 +83,8 @@ jobs:
         shell: bash
         env:
           OVERRIDES: ${{ steps.get_ci_comments.outputs.overrides }}
-          TESTED_REPO_SHA: ${{ github.event.pull_request.head.sha }}
+          TESTED_REPO_FORK: ${{ github.event.pull_request.head.repo.full_name }}
+          TESTED_REPO_BRANCH: ${{ github.event.pull_request.head.ref }}
           GH_TOKEN: ${{ github.token }}
         run: |
 
@@ -93,8 +94,8 @@ jobs:
           if [ -n "$OVERRIDES" ] && [ "$OVERRIDES" != "[]" ]; then
             echo "Applying CI comment overrides: $OVERRIDES"
             OVERRIDE_ARGS="-o $OVERRIDES"
-            if [ -n "$TESTED_REPO_SHA" ]; then
-              OVERRIDE_ARGS="$OVERRIDE_ARGS -s $TESTED_REPO_SHA"
+            if [ -n "$TESTED_REPO_FORK" ] && [ -n "$TESTED_REPO_BRANCH" ]; then
+              OVERRIDE_ARGS="$OVERRIDE_ARGS --tested-repo-head ${TESTED_REPO_FORK}:${TESTED_REPO_BRANCH}"
             fi
           fi
 
