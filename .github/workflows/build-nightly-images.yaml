@@ -31,6 +31,10 @@ jobs:
   build-images:
     name: Build Images ${{ matrix.image.image }}-${{ matrix.os.arch }}
     runs-on: ${{ matrix.os.runner }}
+    env:
+      GONOSUMCHECK: "*"
+      GOFLAGS: "-mod=mod"
+      GOPROXY: direct
     strategy:
       fail-fast: false
       matrix: 
@@ -63,20 +67,18 @@ jobs:
           cd "$GO_MOD_DIR"
           echo "Applying go mod replaces in directory: $(pwd)"
 
+          REPLACE_ARGS=""
           for replace in ${{ join(matrix.image.go_mod_replaces, ' ') }}
           do
-            echo "go mod edit -replace $replace"
-            go mod edit -replace "$replace"
+            echo "  -replace $replace"
+            REPLACE_ARGS="$REPLACE_ARGS -replace $replace"
           done
+          go mod edit $REPLACE_ARGS
 
       - name: Update go mod to the branch
         id: go_mod
         shell: bash
         if: matrix.image.go_mod_update != '' && matrix.image.go_mod_update[0] != null
-        env:
-          GONOSUMCHECK: "*"
-          GOFLAGS: "-mod=mod"
-          GOPROXY: direct
         run: |
           # Change to the specified directory if provided, otherwise use current directory
           GO_MOD_DIR="${{ matrix.image.go_mod_directory || '.' }}"

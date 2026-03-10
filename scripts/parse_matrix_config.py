@@ -89,6 +89,33 @@ def _module_matches_repo(module_path: str, repo: str) -> bool:
     return module_path == prefix or module_path.startswith(f"{prefix}/")
 
 
+def _build_replace_target(
+    module_path: str, source_repo: str, fork_repo: str, branch: str
+) -> str:
+    """Build a go mod replace target, preserving any submodule path.
+
+    For root modules (e.g., github.com/konveyor/analyzer-lsp), the target is
+    github.com/<fork>@<branch>.
+
+    For submodules (e.g., github.com/konveyor/analyzer-lsp/external-providers/java-external-provider),
+    the subpath is preserved: github.com/<fork>/external-providers/java-external-provider@<branch>.
+
+    Args:
+        module_path: The full Go module path being replaced
+        source_repo: The upstream repo (e.g., "konveyor/analyzer-lsp")
+        fork_repo: The fork repo (e.g., "shawn-hurley/analyzer-lsp")
+        branch: The branch name on the fork
+
+    Returns:
+        The replace target string (e.g., "github.com/shawn-hurley/analyzer-lsp/subpath@branch")
+    """
+    source_prefix = f"github.com/{source_repo}"
+    subpath = module_path[
+        len(source_prefix) :
+    ]  # "" for root, "/external-providers/..." for submodules
+    return f"github.com/{fork_repo}{subpath}@{branch}"
+
+
 def resolve_pr_head_info(repo: str, pr_number: str) -> Optional[Dict[str, str]]:
     """Resolve a PR's head fork repo and branch using the GitHub CLI.
 
@@ -173,11 +200,12 @@ def apply_go_mod_replaces(
 
                 # Case 1: Overridden image references the tested repo's module
                 if job.get("ref") and _module_matches_repo(module_path, tested_repo):
-                    replace = f"{module_path}=github.com/{tested_repo_fork}@{tested_repo_branch}"
-                    replaces.append(replace)
-                    print(
-                        f"  go_mod_replaces: {module_path} -> github.com/{tested_repo_fork}@{tested_repo_branch}"
+                    target = _build_replace_target(
+                        module_path, tested_repo, tested_repo_fork, tested_repo_branch
                     )
+                    replace = f"{module_path}={target}"
+                    replaces.append(replace)
+                    print(f"  go_mod_replaces: {module_path} -> {target}")
                     continue
 
                 # Case 2: Tested repo's image references an overridden repo's module
@@ -191,11 +219,15 @@ def apply_go_mod_replaces(
                                 )
                             info = override_info_cache[override_repo]
                             if info:
-                                replace = f"{module_path}=github.com/{info['fork_repo']}@{info['branch']}"
-                                replaces.append(replace)
-                                print(
-                                    f"  go_mod_replaces: {module_path} -> github.com/{info['fork_repo']}@{info['branch']}"
+                                target = _build_replace_target(
+                                    module_path,
+                                    override_repo,
+                                    info["fork_repo"],
+                                    info["branch"],
                                 )
+                                replace = f"{module_path}={target}"
+                                replaces.append(replace)
+                                print(f"  go_mod_replaces: {module_path} -> {target}")
                             break
 
             if replaces:
