@@ -90,16 +90,23 @@ jobs:
 
           pip install -r scripts/requirements.txt
 
-          OVERRIDE_ARGS=""
+          cmd=(
+            python scripts/parse_matrix_config.py
+            .github/workflows/nightly-matrix-config.yaml
+            -t "${{ inputs.tag || github.run_id }}"
+            -b "${{ github.base_ref || github.ref_name }}"
+            -r "${{ inputs.repo || github.repository }}"
+          )
+
           if [ -n "$OVERRIDES" ] && [ "$OVERRIDES" != "[]" ]; then
             echo "Applying CI comment overrides: $OVERRIDES"
-            OVERRIDE_ARGS="-o $OVERRIDES"
+            cmd+=(-o "$OVERRIDES")
             if [ -n "$TESTED_REPO_FORK" ] && [ -n "$TESTED_REPO_BRANCH" ]; then
-              OVERRIDE_ARGS="$OVERRIDE_ARGS --tested-repo-head ${TESTED_REPO_FORK}:${TESTED_REPO_BRANCH}"
+              cmd+=(--tested-repo-head "${TESTED_REPO_FORK}:${TESTED_REPO_BRANCH}")
             fi
           fi
 
-          python scripts/parse_matrix_config.py .github/workflows/nightly-matrix-config.yaml -t ${{ inputs.tag || github.run_id }} -b ${{ github.base_ref || github.ref_name }} -r ${{ inputs.repo || github.repository }} $OVERRIDE_ARGS out
+          "${cmd[@]}" out
 
           # The output may be one ore more of these, we should handle the case where these are empty.
           matrix_0=$(cat out/level_0.json)

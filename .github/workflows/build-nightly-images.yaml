@@ -62,34 +62,36 @@ jobs:
         id: go_mod_replaces
         shell: bash
         if: matrix.image.go_mod_replaces != '' && matrix.image.go_mod_replaces[0] != null
+        env:
+          GO_MOD_REPLACES_JSON: ${{ toJSON(matrix.image.go_mod_replaces) }}
         run: |
           GO_MOD_DIR="${{ matrix.image.go_mod_directory || '.' }}"
           cd "$GO_MOD_DIR"
           echo "Applying go mod replaces in directory: $(pwd)"
 
-          REPLACE_ARGS=""
-          for replace in ${{ join(matrix.image.go_mod_replaces, ' ') }}
-          do
+          REPLACE_ARGS=()
+          while IFS= read -r replace; do
             echo "  -replace $replace"
-            REPLACE_ARGS="$REPLACE_ARGS -replace $replace"
-          done
-          go mod edit $REPLACE_ARGS
+            REPLACE_ARGS+=("-replace" "$replace")
+          done < <(echo "$GO_MOD_REPLACES_JSON" | jq -r '.[]')
+          go mod edit "${REPLACE_ARGS[@]}"
 
       - name: Update go mod to the branch
         id: go_mod
         shell: bash
         if: matrix.image.go_mod_update != '' && matrix.image.go_mod_update[0] != null
+        env:
+          GO_MOD_UPDATE_JSON: ${{ toJSON(matrix.image.go_mod_update) }}
         run: |
           # Change to the specified directory if provided, otherwise use current directory
           GO_MOD_DIR="${{ matrix.image.go_mod_directory || '.' }}"
           cd "$GO_MOD_DIR"
           echo "Running go mod commands in directory: $(pwd)"
 
-          for mod_update in ${{ join(matrix.image.go_mod_update, ' ') }}
-          do
+          while IFS= read -r mod_update; do
             echo "updating go mod $mod_update"
-            go get $mod_update
-          done
+            go get "$mod_update"
+          done < <(echo "$GO_MOD_UPDATE_JSON" | jq -r '.[]')
 
           # Run go mod tidy to clean up
           go mod tidy

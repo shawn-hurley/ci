@@ -218,16 +218,23 @@ def apply_go_mod_replaces(
                                     resolve_pr_head_info(override_repo, pr_number)
                                 )
                             info = override_info_cache[override_repo]
-                            if info:
-                                target = _build_replace_target(
-                                    module_path,
-                                    override_repo,
-                                    info["fork_repo"],
-                                    info["branch"],
+                            if info is None:
+                                print(
+                                    f"Error: Could not resolve PR info for override {override_repo} "
+                                    f"(ref: {ref_overrides[override_repo]}). "
+                                    f"Cannot build go_mod_replaces for {module_path}.",
+                                    file=sys.stderr,
                                 )
-                                replace = f"{module_path}={target}"
-                                replaces.append(replace)
-                                print(f"  go_mod_replaces: {module_path} -> {target}")
+                                sys.exit(1)
+                            target = _build_replace_target(
+                                module_path,
+                                override_repo,
+                                info["fork_repo"],
+                                info["branch"],
+                            )
+                            replace = f"{module_path}={target}"
+                            replaces.append(replace)
+                            print(f"  go_mod_replaces: {module_path} -> {target}")
                             break
 
             if replaces:
